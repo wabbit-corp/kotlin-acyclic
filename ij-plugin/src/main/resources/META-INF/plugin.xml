@@ -1,0 +1,20 @@
+<idea-plugin>
+    <id>one.wabbit.acyclic.ide</id>
+    <name>Acyclic IDE Support</name>
+    <version>0.0.1</version>
+    <vendor email="wabbit@wabbit.one" url="https://wabbit.one">Wabbit Consulting Corporation</vendor>
+    <description>Enables IntelliJ-side support for one.wabbit kotlin-acyclic projects by allowing the Kotlin IDE plugin to load the external compiler plugin registrar from imported compiler arguments.</description>
+    <change-notes>Initial release.</change-notes>
+    <extensions defaultExtensionNs="com.intellij">
+        <backgroundPostStartupActivity implementation="one.wabbit.acyclic.idea.AcyclicIdeSupportActivity" />
+        <notificationGroup id="AcyclicIdeSupport" displayType="BALLOON" />
+    </extensions>
+    <actions>
+        <action id="one.wabbit.acyclic.idea.RefreshAcyclicIdeSupportAction" class="one.wabbit.acyclic.idea.RefreshAcyclicIdeSupportAction" text="Refresh Acyclic IDE Support" description="Re-scan Kotlin compiler arguments and enable acyclic IDE support for this project session.">
+            <add-to-group group-id="ToolsMenu" anchor="last" />
+        </action>
+    </actions>
+    <idea-version since-build="253" />
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.kotlin</depends>
+</idea-plugin>

@@ -71,6 +71,99 @@ class CompilerIntegrationTest {
     }
 
     @Test
+    fun `generic type arguments contribute declaration order dependencies`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                fun use(values: List<Later>): Int = values.size
+
+                class Later
+                """.trimIndent(),
+                declarations = "enabled",
+                declarationOrder = "bottom-up",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertContains(result.renderedMessages(), "sample/Test.kt::use(")
+        assertContains(result.renderedMessages(), "sample/Test.kt::Later")
+        assertContains(result.renderedMessages(), "earlier declarations are required")
+    }
+
+    @Test
+    fun `function types contribute declaration order dependencies`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                fun use(factory: () -> Later): Later = factory()
+
+                class Later
+                """.trimIndent(),
+                declarations = "enabled",
+                declarationOrder = "bottom-up",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertContains(result.renderedMessages(), "sample/Test.kt::use(")
+        assertContains(result.renderedMessages(), "sample/Test.kt::Later")
+        assertContains(result.renderedMessages(), "earlier declarations are required")
+    }
+
+    @Test
+    fun `function types contribute compilation unit dependencies`() {
+        val result =
+            compileSources(
+                sources =
+                    mapOf(
+                        "sample/A.kt" to
+                            """
+                            package sample
+
+                            class A(val factory: () -> B)
+                            """.trimIndent(),
+                        "sample/B.kt" to
+                            """
+                            package sample
+
+                            class B(val value: A)
+                            """.trimIndent(),
+                    ),
+                declarations = "disabled",
+                compilationUnits = "enabled",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertEquals(2, result.errorCountContaining("Circular dependency detected between Kotlin files"))
+        assertContains(result.renderedMessages(), "sample/A.kt")
+        assertContains(result.renderedMessages(), "sample/B.kt")
+    }
+
+    @Test
+    fun `member property initializers participate in class construction cycles`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                class A {
+                    val next: A = seed()
+                }
+
+                fun seed(): A = A()
+                """.trimIndent(),
+                declarations = "enabled",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertContains(result.renderedMessages(), "sample/Test.kt::A")
+        assertContains(result.renderedMessages(), "sample/Test.kt::seed()")
+        assertContains(result.renderedMessages(), "Circular dependency detected between Kotlin declarations")
+    }
+
+    @Test
     fun `enum companion helpers do not create declaration cycles`() {
         val result =
             compileSnippet(

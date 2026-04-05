@@ -124,6 +124,7 @@ jobs:
           java-version: "21"
           cache: gradle
 
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
@@ -133,7 +134,7 @@ jobs:
       - name: Detect snapshot version
         id: snapshot_version
         run: |
-          BASE_VERSION="$(./gradlew --quiet --no-daemon -PkotlinVersion=${{ matrix.kotlin-version }} :compiler-plugin:printBaseVersion | sed '/^[[:space:]]*$/d')"
+          BASE_VERSION="$(./gradlew --quiet --no-daemon '-PkotlinVersion=${{ matrix.kotlin-version }}' :compiler-plugin:printBaseVersion | sed '/^[[:space:]]*$/d')"
           test -n "${BASE_VERSION}"
           printf 'version=%s\n' "${BASE_VERSION}" >> "$GITHUB_OUTPUT"
           if printf '%s' "${BASE_VERSION}" | grep -qE '\+dev-SNAPSHOT$'; then
@@ -155,4 +156,4 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
-        run: ./gradlew --no-daemon -PkotlinVersion=${{ matrix.kotlin-version }} :compiler-plugin:assertSnapshotVersion :compiler-plugin:publishToMavenCentral
+        run: ./gradlew --no-daemon '-PkotlinVersion=${{ matrix.kotlin-version }}' :compiler-plugin:assertSnapshotVersion :compiler-plugin:publishToMavenCentral

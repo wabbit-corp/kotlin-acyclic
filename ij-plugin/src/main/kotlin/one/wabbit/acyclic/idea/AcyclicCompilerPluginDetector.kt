@@ -79,8 +79,8 @@ internal object AcyclicCompilerPluginDetector {
         Files.walk(projectRoot, MAX_GRADLE_BUILD_SCAN_DEPTH).use { paths ->
             return paths
                 .filter(Files::isRegularFile)
-                .filter(::isGradleBuildFileCandidate)
                 .map { path -> projectRoot.relativize(path).normalize() }
+                .filter(::isGradleBuildFileCandidate)
                 .filter { relativePath ->
                     runCatching {
                         isAcyclicGradlePluginReference(
@@ -133,4 +133,3 @@ internal object AcyclicCompilerPluginDetector {
             fileName.endsWith(".versions.toml")
     }
 }
-

@@ -1,6 +1,7 @@
 package one.wabbit.acyclic.idea
 
 import java.nio.file.Files
+import java.util.MissingResourceException
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.test.Test
@@ -110,6 +111,58 @@ class AcyclicCompilerPluginDetectorTest {
             listOf("build.gradle.kts", "gradle/libs.versions.toml"),
             matches,
         )
+    }
+
+    @Test
+    fun `matchingGradleBuildFiles does not reject projects rooted under build-like path segments`() {
+        val sandboxRoot = Files.createTempDirectory("acyclic-idea-detector-root")
+        val projectRoot = sandboxRoot.resolve("build/demo")
+        projectRoot.createDirectories()
+        projectRoot.resolve("build.gradle.kts").writeText(
+            """
+            plugins {
+                id("one.wabbit.acyclic")
+            }
+            """.trimIndent(),
+        )
+
+        val matches = AcyclicCompilerPluginDetector.matchingGradleBuildFiles(projectRoot)
+
+        assertEquals(listOf("build.gradle.kts"), matches)
+    }
+
+    @Test
+    fun `missing registry keys do not crash IDE support activation`() {
+        var notified = false
+
+        val result =
+            AcyclicIdeSupportCoordinator.enableIfNeeded(
+                scan =
+                    AcyclicCompilerPluginScan(
+                        projectLevelMatch =
+                            AcyclicCompilerPluginMatch(
+                                ownerName = "demo",
+                                classpaths = listOf("/tmp/kotlin-acyclic-plugin.jar"),
+                            ),
+                        moduleMatches = emptyList(),
+                        gradleBuildFiles = emptyList(),
+                    ),
+                projectTrusted = true,
+                userInitiated = false,
+                registryAllowsOnlyBundledPlugins = true,
+                enableExternalPluginsForProjectSession = {
+                    throw MissingResourceException(
+                        "missing registry key",
+                        "Registry",
+                        EXTERNAL_K2_COMPILER_PLUGINS_REGISTRY_KEY,
+                    )
+                },
+                notify = { _, _, _ -> notified = true },
+            )
+
+        assertFalse(result.registryAlreadyEnabledForExternalPlugins)
+        assertFalse(result.registryUpdated)
+        assertFalse(notified)
     }
 
     @Test

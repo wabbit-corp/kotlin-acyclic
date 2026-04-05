@@ -16,6 +16,7 @@ pluginManagement {
             .orElse(providers.gradleProperty("defaultKotlinVersion"))
             .orElse("2.3.10")
             .get()
+
     repositories {
         google()
         gradlePluginPortal()

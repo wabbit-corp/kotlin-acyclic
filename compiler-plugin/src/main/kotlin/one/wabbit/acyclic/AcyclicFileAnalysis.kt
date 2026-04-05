@@ -33,11 +33,16 @@ import org.jetbrains.kotlin.fir.resolve.providers.firProvider
 import org.jetbrains.kotlin.fir.resolve.providers.getContainingFile
 import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
+import org.jetbrains.kotlin.fir.types.ConeClassLikeType
+import org.jetbrains.kotlin.fir.types.ConeDefinitelyNotNullType
+import org.jetbrains.kotlin.fir.types.ConeIntersectionType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.classLikeLookupTagIfAny
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.isMarkedNullable
+import org.jetbrains.kotlin.fir.types.lowerBoundIfFlexible
+import org.jetbrains.kotlin.fir.types.type
 import org.jetbrains.kotlin.fir.visitors.FirDefaultVisitorVoid
 
 internal class AcyclicCheckersExtension(
@@ -386,9 +391,9 @@ private class FileDependencyVisitor(
     }
 
     override fun visitResolvedTypeRef(resolvedTypeRef: FirResolvedTypeRef) {
-        resolvedTypeRef.coneType.classLikeLookupTagIfAny
-            ?.toSymbol(session)
-            ?.let { recordDependency(it, resolvedTypeRef.source) }
+        resolvedTypeRef.coneType.forEachReferencedClassLikeSymbol(session) { symbol ->
+            recordDependency(symbol, resolvedTypeRef.source)
+        }
         super.visitResolvedTypeRef(resolvedTypeRef)
     }
 
@@ -448,6 +453,7 @@ private class SingleDeclarationDependencyVisitor(
             when (nestedDeclaration) {
                 is FirAnonymousInitializer -> collectFromAnonymousInitializer(nestedDeclaration)
                 is FirConstructor -> collectFromConstructor(nestedDeclaration)
+                is FirProperty -> collectFromMemberPropertyInitialization(nestedDeclaration)
                 else -> Unit
             }
         }
@@ -465,6 +471,11 @@ private class SingleDeclarationDependencyVisitor(
         declaration.delegate?.accept(this)
         declaration.getter?.takeIf(::hasRealSource)?.body?.accept(this)
         declaration.setter?.takeIf(::hasRealSource)?.body?.accept(this)
+    }
+
+    private fun collectFromMemberPropertyInitialization(property: FirProperty) {
+        property.initializer?.accept(this)
+        property.delegate?.accept(this)
     }
 
     private fun collectFromTypeAlias(declaration: FirTypeAlias) {
@@ -527,15 +538,13 @@ private class SingleDeclarationDependencyVisitor(
     }
 
     override fun visitResolvedTypeRef(resolvedTypeRef: FirResolvedTypeRef) {
-        resolvedTypeRef.coneType.classLikeLookupTagIfAny
-            ?.toSymbol(session)
-            ?.let {
-                recordDependency(
-                    symbol = it,
-                    source = resolvedTypeRef.source,
-                    ignoreAncestorTypeReference = true,
-                )
-            }
+        resolvedTypeRef.coneType.forEachReferencedClassLikeSymbol(session) { symbol ->
+            recordDependency(
+                symbol = symbol,
+                source = resolvedTypeRef.source,
+                ignoreAncestorTypeReference = true,
+            )
+        }
         super.visitResolvedTypeRef(resolvedTypeRef)
     }
 
@@ -643,6 +652,25 @@ private fun ConeKotlinType.renderAcyclicType(): String {
     val classId = classLikeLookupTagIfAny?.classId ?: return toString()
     val baseName = classId.shortClassName.asString()
     return if (isMarkedNullable) "$baseName?" else baseName
+}
+
+private fun ConeKotlinType.forEachReferencedClassLikeSymbol(
+    session: FirSession,
+    visit: (FirBasedSymbol<*>) -> Unit,
+) {
+    when (val lowered = lowerBoundIfFlexible()) {
+        is ConeDefinitelyNotNullType -> lowered.original.forEachReferencedClassLikeSymbol(session, visit)
+        is ConeIntersectionType -> lowered.intersectedTypes.forEach { type -> type.forEachReferencedClassLikeSymbol(session, visit) }
+        else -> {
+            (lowered as? ConeClassLikeType)
+                ?.lookupTag
+                ?.toSymbol(session)
+                ?.let(visit)
+            lowered.typeArguments.forEach { argument ->
+                argument.type?.forEachReferencedClassLikeSymbol(session, visit)
+            }
+        }
+    }
 }
 
 @OptIn(org.jetbrains.kotlin.fir.symbols.SymbolInternals::class)

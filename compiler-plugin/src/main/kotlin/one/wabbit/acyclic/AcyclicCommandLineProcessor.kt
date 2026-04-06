@@ -9,7 +9,24 @@ import org.jetbrains.kotlin.compiler.plugin.CommandLineProcessor
 import org.jetbrains.kotlin.config.CompilerConfiguration
 
 /**
- * Parses compiler plugin CLI options into [CompilerConfiguration].
+ * Command-line option parser for the `one.wabbit.acyclic` compiler plugin.
+ *
+ * The processor translates raw compiler-plugin options into the [CompilerConfiguration] entries
+ * consumed by [AcyclicCompilerPluginRegistrar].
+ *
+ * It accepts three module-level controls:
+ *
+ * - `compilationUnits=disabled|opt-in|enabled`
+ * - `declarations=disabled|opt-in|enabled`
+ * - `declarationOrder=none|top-down|bottom-up`
+ *
+ * These are the same values exposed through the Gradle `acyclic {}` DSL. Most consumers should
+ * configure the plugin through Gradle, but the direct CLI path is useful for:
+ *
+ * - debugging compiler integration directly
+ * - compiler integration tests
+ * - non-Gradle build tooling
+ * - confirming the exact raw options forwarded by the Gradle plugin
  */
 class AcyclicCommandLineProcessor : CommandLineProcessor {
     private val compilationUnitsOption =

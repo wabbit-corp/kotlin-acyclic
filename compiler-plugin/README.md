@@ -1,60 +1,43 @@
 # kotlin-acyclic-plugin
 
-`kotlin-acyclic-plugin` is the Kotlin compiler plugin that enforces the `one.wabbit.acyclic` rules.
+`kotlin-acyclic-plugin` is the K2/FIR compiler plugin that enforces the `one.wabbit.acyclic` rule set.
 
-It is built against the Kotlin version selected by `-PkotlinVersion` in this repository, defaulting to `defaultKotlinVersion` from `gradle.properties`, and runs as a K2/FIR plugin. Published compiler-plugin artifacts use the version format `<baseVersion>-kotlin-<kotlinVersion>`, and the repository publish workflows fan out across `supportedKotlinVersions`. In normal use, consumers should apply it through `kotlin-acyclic-gradle-plugin` rather than wiring `-Xplugin` and raw `-P plugin:...` flags by hand.
+Most projects should apply `one.wabbit.acyclic` through the companion Gradle plugin, but this module is the actual compiler-side implementation and is the right entry point for direct compiler integration, build-tool adapters, and Dokka API documentation.
 
-## Repository Role
+## Artifact
 
-The acyclic project family is split into three parts:
+The compiler plugin is published as a Kotlin-line-specific artifact:
 
-- `kotlin-acyclic`: annotations used in source code
-- `kotlin-acyclic-plugin`: compiler enforcement
-- `kotlin-acyclic-gradle-plugin`: Gradle integration
+- `one.wabbit:kotlin-acyclic-plugin:0.0.1-kotlin-2.3.10`
 
-This repository is the enforcement engine.
+The `-kotlin-<kotlinVersion>` suffix is intentional. FIR compiler-plugin binaries are coupled to the Kotlin compiler APIs they were built against.
 
-## What It Checks
+The current release train publishes Kotlin-specific compiler-plugin variants for:
 
-The plugin currently models three related rule families:
+- `2.3.10`
+- `2.4.0-Beta1`
+
+If you use Gradle, the companion plugin resolves the matching variant automatically.
+
+## What The Compiler Plugin Enforces
+
+The compiler plugin evaluates three rule families:
 
 - compilation-unit acyclicity
 - declaration acyclicity
 - declaration order
 
-Compilation-unit acyclicity is about `.kt` files forming a DAG.
+Compilation-unit acyclicity reports cycles between Kotlin source files.
 
-Declaration acyclicity is about declarations within a file forming a DAG.
+Declaration acyclicity reports recursive dependency structure between tracked declarations in a file. The declaration graph is intentionally file-local today.
 
-Declaration order is a stricter rule layered on top of declaration acyclicity. It requires the declaration DAG to align with either top-down or bottom-up source order.
+Declaration order adds an optional directional rule on top of declaration acyclicity and checks whether declaration dependencies respect `top-down` or `bottom-up` source order.
 
-## Architecture
+When an edge is already part of a reported declaration cycle, the cycle diagnostic takes precedence and the redundant declaration-order diagnostic for that same edge is suppressed.
 
-The main flow is:
+## Compiler Options
 
-1. `AcyclicCommandLineProcessor` parses compiler options.
-2. `AcyclicCompilerPluginRegistrar` registers a FIR checker extension.
-3. `AcyclicFileAnalysis` analyzes each FIR file using resolved references and resolved types.
-4. `AcyclicDependencyGraph` evaluates file-level SCCs.
-5. `AcyclicDeclarationGraph` evaluates declaration SCCs and source-order violations.
-6. `AcyclicDiagnostics` reports the resulting errors.
-
-The important design choice is that the analysis is semantic rather than text-based. Dependencies are derived from resolved FIR symbols instead of source regexes or import-string heuristics.
-
-## Scoping Rules
-
-The plugin intentionally distinguishes scoping from dependency.
-
-Examples that should remain legal:
-
-- `sealed interface Foo { class Boo : Foo }`
-- `class Foo { fun self(): Foo }`
-
-The goal is to ban recursive definition structure, not to ban lexical containment or nominal self-reference.
-
-## Configuration
-
-The compiler plugin accepts three options:
+The plugin accepts three module-level options:
 
 - `compilationUnits=disabled|opt-in|enabled`
 - `declarations=disabled|opt-in|enabled`
@@ -68,11 +51,26 @@ Raw CLI form:
 -P plugin:one.wabbit.acyclic:declarationOrder=none|top-down|bottom-up
 ```
 
-Direct compiler invocation is supported, but the companion Gradle plugin is the intended surface.
+These options define the build-level defaults for the compilation. Source annotations from `one.wabbit:kotlin-acyclic` can then opt specific files or declarations in, override declaration-order policy, or declare narrowly scoped recursion exemptions.
+
+## Control Precedence
+
+The effective policy is resolved in this order:
+
+1. compiler-plugin options establish the build-level defaults for the compilation
+2. file annotations can opt whole files in, allow whole-file compilation-unit cycles, and set a file-local declaration-order default
+3. declaration annotations can opt individual tracked declarations in and grant narrow recursion exceptions
+4. declaration-level `@Acyclic(order = DEFAULT|NONE|TOP_DOWN|BOTTOM_UP)` can replace the file-level order rule or reset back to the build-level default
+
+For declaration order specifically:
+
+- module default comes from `declarationOrder`
+- `@file:Acyclic(order = ...)` overrides that default for tracked declarations in the file
+- `@Acyclic(order = DEFAULT)` on a declaration resets that declaration back to the module default
 
 ## Direct Usage
 
-If you are debugging the compiler plugin itself, the direct form looks like:
+If you are wiring the plugin into the Kotlin compiler directly:
 
 ```text
 -Xplugin=/path/to/kotlin-acyclic-plugin.jar
@@ -81,62 +79,134 @@ If you are debugging the compiler plugin itself, the direct form looks like:
 -P plugin:one.wabbit.acyclic:declarationOrder=top-down
 ```
 
-If you are resolving the jar from Maven coordinates directly, use the Kotlin-matched variant such as `one.wabbit:kotlin-acyclic-plugin:0.0.1-kotlin-2.3.10`.
+If source code uses `one.wabbit.acyclic.*`, the annotations library still needs to be present on the compilation classpath.
 
-The annotation library still needs to be present on the compilation classpath if source uses `one.wabbit.acyclic.*`.
+## Analysis Model
 
-## Source Layout
+The compiler-plugin pipeline is:
 
-- `src/main/kotlin/one/wabbit/acyclic/AcyclicCommandLineProcessor.kt`
-  Parses CLI options into `CompilerConfiguration`.
-- `src/main/kotlin/one/wabbit/acyclic/AcyclicCompilerPluginRegistrar.kt`
-  Registers the FIR extension.
-- `src/main/kotlin/one/wabbit/acyclic/AcyclicFileAnalysis.kt`
-  Builds per-file analysis state from resolved FIR structures.
-- `src/main/kotlin/one/wabbit/acyclic/AcyclicDependencyGraph.kt`
-  Detects compilation-unit cycles.
-- `src/main/kotlin/one/wabbit/acyclic/AcyclicDeclarationGraph.kt`
-  Detects declaration cycles and order violations.
-- `src/main/kotlin/one/wabbit/acyclic/AcyclicControls.kt`
-  Reads annotations and source-level overrides.
-- `src/main/kotlin/one/wabbit/acyclic/AcyclicDiagnostics.kt`
-  Defines FIR diagnostics.
+1. `AcyclicCommandLineProcessor` parses raw compiler-plugin options.
+2. `AcyclicCompilerPluginRegistrar` registers the FIR checker extension.
+3. `AcyclicFileAnalysis` walks resolved FIR and records dependency evidence.
+4. `AcyclicDependencyGraph` evaluates file-level strongly connected components.
+5. `AcyclicDeclarationGraph` evaluates declaration cycles and order violations.
+6. `AcyclicDiagnostics` reports compiler errors.
 
-## Tests
+The critical design choice is semantic analysis. Dependencies come from resolved FIR symbols and resolved types rather than from imports or syntax-only heuristics.
 
-The test suite is split into two layers:
+## Scope
 
-- graph-level tests
-  These validate SCC detection and order-violation rules in isolation.
-- compiler integration tests
-  These compile real snippets through the plugin and assert on diagnostics.
+Declaration analysis intentionally distinguishes lexical containment from dependency.
 
-The current integration suite covers:
+Examples that remain legal:
 
-- scoping exemptions
-- self recursion
-- mutual recursion
-- file cycles
-- opt-in behavior
-- order-direction behavior
-- file-level order overrides
-- explicit recursion escape hatches
-- local declarations staying out of declaration analysis
+- `sealed interface Foo { class Boo : Foo }`
+- `class Foo { fun self(): Foo = this }`
 
-Declaration analysis currently covers top-level declarations and class members. Local declarations
-inside function bodies, accessors, and initializer blocks are intentionally ignored.
+Declaration analysis currently covers top-level declarations and declarations nested inside classes, and it only evaluates declaration dependencies within the current file. Local declarations inside function bodies, accessors, and other local scopes are not tracked as separate declaration nodes.
 
-Run:
+Local declarations still matter semantically: their resolved dependencies are attributed to the enclosing tracked declaration instead of becoming separate graph nodes.
 
-```bash
-./gradlew test
+## Worked Examples
+
+### Legal scoping
+
+These shapes are intentionally legal because they express containment or self-typing, not sibling recursion:
+
+```kotlin
+package sample
+
+sealed interface Foo {
+    class Boo : Foo
+}
+
+class Box {
+    fun self(): Box = this
+}
 ```
 
-from the repository root.
+### Illegal declaration recursion
+
+With declaration analysis enabled, same-file mutual recursion is rejected:
+
+```kotlin
+package sample
+
+fun parseA(): Node = parseB()
+
+fun parseB(): Node = parseA()
+```
+
+### Illegal file cycles
+
+With compilation-unit analysis enabled, cross-file semantic cycles are rejected:
+
+```kotlin
+// sample/A.kt
+package sample
+
+class A(val b: B)
+```
+
+```kotlin
+// sample/B.kt
+package sample
+
+class B(val a: A)
+```
+
+### Order violations
+
+With `-P plugin:one.wabbit.acyclic:declarationOrder=bottom-up`, the following file is rejected because `use()` appears earlier but depends on `helper()`:
+
+```kotlin
+package sample
+
+fun use(): Int = helper()
+
+fun helper(): Int = 1
+```
+
+Under `top-down`, the same file is valid.
+
+### Explicit opt-outs
+
+Escape hatches are all-or-nothing at the cycle level:
+
+```kotlin
+package sample
+
+import one.wabbit.acyclic.AllowMutualRecursion
+
+@AllowMutualRecursion
+fun even(n: Int): Boolean =
+    if (n == 0) true else odd(n - 1)
+
+@AllowMutualRecursion
+fun odd(n: Int): Boolean =
+    if (n == 0) false else even(n - 1)
+```
+
+If only one participant opts out, the cycle is still reported.
+
+## When To Use This Module Directly
+
+Use this artifact directly when:
+
+- integrating with a non-Gradle build pipeline
+- debugging compiler-plugin behavior
+- testing Kotlin-version-specific compiler-plugin variants
+- reading the Dokka API surface for compiler-side internals
+
+If you are using Gradle, prefer [`../gradle-plugin/README.md`](../gradle-plugin/README.md).
 
 ## Related Docs
 
-- `GOAL.md` for the project-level design targets
-- `WALKTHROUGH.md` for a manual review order and architecture diagrams
-- `../kotlin-acyclic/README.md` for annotations
-- `../kotlin-acyclic-gradle-plugin/README.md` for Gradle integration
+- [`../README.md`](../README.md)
+- [`../docs/user-guide.md`](../docs/user-guide.md)
+- [`../docs/development.md`](../docs/development.md)
+- [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)
+- [`../library/README.md`](../library/README.md)
+- [`../gradle-plugin/README.md`](../gradle-plugin/README.md)
+- [`GOAL.md`](GOAL.md)
+- [`WALKTHROUGH.md`](WALKTHROUGH.md)

@@ -11,7 +11,22 @@ import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrarAdapter
 
 @OptIn(ExperimentalCompilerApi::class)
 /**
- * Registers the FIR checker extension used by the acyclicity compiler plugin.
+ * Compiler-plugin entry point for `one.wabbit.acyclic`.
+ *
+ * The registrar advertises K2/FIR support and installs the FIR checker extension that performs
+ * all acyclicity analysis for the current compilation:
+ *
+ * - compilation-unit cycle detection
+ * - declaration cycle detection
+ * - declaration source-order enforcement
+ *
+ * In normal builds this class is loaded through the companion Gradle plugin. Direct compiler
+ * integration is still possible by passing the plugin jar with `-Xplugin` and supplying the
+ * `plugin:one.wabbit.acyclic:*` options parsed by [AcyclicCommandLineProcessor].
+ *
+ * The installed FIR extension interprets compiler-plugin options as build-level defaults, then
+ * refines them with source annotations from `one.wabbit:kotlin-acyclic` on a file-by-file and
+ * declaration-by-declaration basis.
  */
 class AcyclicCompilerPluginRegistrar : CompilerPluginRegistrar() {
     override val pluginId: String = ACYCLIC_PLUGIN_ID

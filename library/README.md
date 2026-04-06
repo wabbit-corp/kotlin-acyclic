@@ -35,8 +35,10 @@ Targets:
 - typealias
 
 Declaration analysis currently applies to top-level declarations and declarations nested inside
-classes. Local declarations inside functions, accessors, and initializer bodies are not tracked by
-the compiler plugin.
+classes, and declaration dependencies are evaluated only within the current file. Local declarations
+inside functions, accessors, and initializer bodies are not tracked by the compiler plugin as
+separate declaration nodes. Their resolved dependencies still contribute to the enclosing tracked
+declaration.
 
 Example:
 
@@ -64,6 +66,23 @@ Values:
 When `@file:Acyclic(order = ...)` is present, that file-level order becomes the default for
 tracked declarations in the file unless a declaration-level `@Acyclic(order = ...)` replaces it or
 resets it with `DEFAULT`.
+
+## Precedence Within One Compilation
+
+The annotations in this module sit on top of build-level defaults from the Gradle plugin or direct
+compiler-plugin options.
+
+The effective policy is resolved in this order:
+
+1. build-level defaults from `acyclic {}` or `plugin:one.wabbit.acyclic:*` options
+2. file annotations such as `@file:Acyclic` and `@file:AllowCompilationUnitCycles`
+3. declaration annotations such as `@Acyclic`, `@AllowSelfRecursion`, and `@AllowMutualRecursion`
+
+For declaration order specifically:
+
+- the module-level default comes from the build configuration
+- `@file:Acyclic(order = ...)` overrides that default for tracked declarations in the file
+- `@Acyclic(order = DEFAULT)` on a declaration resets that declaration back to the module-level default
 
 ### `@AllowCompilationUnitCycles`
 
@@ -162,6 +181,9 @@ Then use annotations in source only where you want to:
 
 ## Related Docs
 
-- `../kotlin-acyclic-gradle-plugin/README.md` for build integration
-- `../kotlin-acyclic-plugin/README.md` for compiler-plugin internals
-- `../kotlin-acyclic-plugin/WALKTHROUGH.md` for a manual review guide
+- [`../README.md`](../README.md) for the project overview
+- [`../docs/user-guide.md`](../docs/user-guide.md) for setup and rule semantics
+- [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) for the repo-wide architecture
+- [`../gradle-plugin/README.md`](../gradle-plugin/README.md) for build integration
+- [`../compiler-plugin/README.md`](../compiler-plugin/README.md) for compiler-plugin internals
+- [`../compiler-plugin/WALKTHROUGH.md`](../compiler-plugin/WALKTHROUGH.md) for a manual review guide

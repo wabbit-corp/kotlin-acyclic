@@ -19,6 +19,13 @@ private const val ACYCLIC_EXTENSION_NAME = "acyclic"
  * The plugin registers the [AcyclicGradleExtension], makes the compiler plugin applicable to every
  * Kotlin compilation in the target project, and forwards the typed Gradle settings as compiler
  * plugin options.
+ *
+ * It also resolves the Kotlin-line-specific compiler plugin artifact automatically, so consumers
+ * can depend on the plain Gradle plugin version while the implementation artifact still tracks the
+ * Kotlin compiler line in its own version suffix.
+ *
+ * Most builds should use this plugin together with the annotations library
+ * `one.wabbit:kotlin-acyclic`.
  */
 class AcyclicGradlePlugin : KotlinCompilerPluginSupportPlugin {
     override fun apply(target: Project) {

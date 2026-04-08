@@ -6,13 +6,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 repositories {
-    if (rootProject.file("settings.local.gradle.kts").isFile()) {
-        mavenLocal {
-            content {
-                includeGroup("one.wabbit")
-            }
-        }
-    }
+    google()
     mavenCentral()
 
     intellijPlatform {

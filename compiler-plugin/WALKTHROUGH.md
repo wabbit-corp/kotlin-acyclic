@@ -27,15 +27,15 @@ flowchart LR
 
 ### 1. Annotation Library
 
-Start in `../kotlin-acyclic`.
+Start in `../library`.
 
 Files:
 
-- `src/commonMain/kotlin/one/wabbit/acyclic/Acyclic.kt`
-- `src/commonMain/kotlin/one/wabbit/acyclic/AcyclicOrder.kt`
-- `src/commonMain/kotlin/one/wabbit/acyclic/AllowCompilationUnitCycles.kt`
-- `src/commonMain/kotlin/one/wabbit/acyclic/AllowSelfRecursion.kt`
-- `src/commonMain/kotlin/one/wabbit/acyclic/AllowMutualRecursion.kt`
+- `../library/src/commonMain/kotlin/one/wabbit/acyclic/Acyclic.kt`
+- `../library/src/commonMain/kotlin/one/wabbit/acyclic/AcyclicOrder.kt`
+- `../library/src/commonMain/kotlin/one/wabbit/acyclic/AllowCompilationUnitCycles.kt`
+- `../library/src/commonMain/kotlin/one/wabbit/acyclic/AllowSelfRecursion.kt`
+- `../library/src/commonMain/kotlin/one/wabbit/acyclic/AllowMutualRecursion.kt`
 
 Questions to answer:
 
@@ -46,12 +46,12 @@ Questions to answer:
 
 ### 2. Gradle Bridge
 
-Then review `../kotlin-acyclic-gradle-plugin`.
+Then review `../gradle-plugin`.
 
 Files:
 
-- `src/main/kotlin/one/wabbit/acyclic/gradle/AcyclicGradleExtension.kt`
-- `src/main/kotlin/one/wabbit/acyclic/gradle/AcyclicGradlePlugin.kt`
+- `../gradle-plugin/src/main/kotlin/one/wabbit/acyclic/gradle/AcyclicGradleExtension.kt`
+- `../gradle-plugin/src/main/kotlin/one/wabbit/acyclic/gradle/AcyclicGradlePlugin.kt`
 
 Questions to answer:
 
@@ -145,6 +145,15 @@ What to look for:
 
 The key question here is: does the declaration graph capture recursive definition structure without confusing scoping for dependency?
 
+Important current boundary:
+
+- declaration analysis is file-local today
+- declaration nodes are accumulated per file
+- cross-file declaration edges are intentionally ignored by the declaration graph
+- cross-file recursion is therefore enforced only by compilation-unit analysis, not by a module-wide declaration graph
+- local declarations are not tracked as separate declaration nodes
+- resolved dependencies that appear inside local declarations are attributed to the enclosing tracked declaration instead
+
 ## Control Precedence
 
 ```mermaid
@@ -161,6 +170,15 @@ Practical reading:
 - build config chooses the default policy
 - file annotations can opt whole files in or out and can override order
 - declaration annotations can opt single declarations in or grant narrow exceptions
+- `@Acyclic(order = DEFAULT)` resets one declaration back to the build-level order default
+
+## Diagnostic Priority
+
+Current reporting policy:
+
+- declaration cycles are reported as the primary error for edges inside a cyclic SCC
+- declaration-order diagnostics are still reported for non-cyclic wrong-direction edges
+- redundant order diagnostics for edges already covered by a reported declaration cycle are suppressed
 
 ## Tests
 

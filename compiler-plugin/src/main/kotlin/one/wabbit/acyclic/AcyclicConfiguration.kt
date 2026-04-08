@@ -1,8 +1,19 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 package one.wabbit.acyclic
 
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.CompilerConfigurationKey
 
+/**
+ * Build-level enforcement mode for compilation-unit and declaration analysis.
+ *
+ * `OPT_IN` and `ENABLED` are interpreted relative to source annotations such as
+ * `@Acyclic`, `@AllowCompilationUnitCycles`, and `@AllowMutualRecursion`.
+ *
+ * In the effective precedence chain, this is the build-level default. File annotations and then
+ * declaration annotations may refine the behavior locally for one file or one tracked declaration.
+ */
 internal enum class AcyclicMode(
     val cliValue: String,
 ) {
@@ -19,6 +30,13 @@ internal enum class AcyclicMode(
     }
 }
 
+/**
+ * Build-level source-order policy for declaration dependencies.
+ *
+ * This setting is the module default. Source annotations may replace it for an entire file or for
+ * a single declaration. `@Acyclic(order = DEFAULT)` on a declaration resets back to this value,
+ * even when the file sets its own order override.
+ */
 internal enum class AcyclicDeclarationOrder(
     val cliValue: String,
 ) {
@@ -35,6 +53,16 @@ internal enum class AcyclicDeclarationOrder(
     }
 }
 
+/**
+ * Effective compiler-plugin configuration for one compilation.
+ *
+ * Values originate from [AcyclicCommandLineProcessor] and are interpreted by the FIR checker
+ * extension registered by [AcyclicCompilerPluginRegistrar].
+ *
+ * These values are the build-level defaults for the compilation. The FIR analysis then resolves the
+ * final policy per file and per declaration by applying source annotations on top of this
+ * configuration.
+ */
 internal data class AcyclicConfiguration(
     val compilationUnitMode: AcyclicMode = AcyclicMode.OPT_IN,
     val declarationMode: AcyclicMode = AcyclicMode.DISABLED,

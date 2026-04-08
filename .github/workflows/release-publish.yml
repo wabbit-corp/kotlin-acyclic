@@ -72,13 +72,13 @@ jobs:
           test "${TAG_TYPE}" = "tag"
 
       - name: Validate release version
-        run: ./gradlew --no-daemon :kotlin-acyclic:assertReleaseVersion :gradle-plugin:assertReleaseVersion
+        run: ./gradlew --no-daemon :kotlin-acyclic:assertReleaseVersion :kotlin-acyclic-gradle-plugin:assertReleaseVersion
 
       - name: Match tag to published version
         if: github.event_name == 'push'
         run: |
           EXPECTED_VERSION="${GITHUB_REF_NAME#v}"
-          ACTUAL_VERSIONS="$(./gradlew --quiet --no-daemon :kotlin-acyclic:printBaseVersion :compiler-plugin:printBaseVersion :gradle-plugin:printBaseVersion)"
+          ACTUAL_VERSIONS="$(./gradlew --quiet --no-daemon :kotlin-acyclic:printBaseVersion :kotlin-acyclic-plugin:printBaseVersion :kotlin-acyclic-gradle-plugin:printBaseVersion)"
           ACTUAL_VERSIONS="$(printf '%s\n' "${ACTUAL_VERSIONS}" | sed '/^[[:space:]]*$/d')"
           UNIQUE_VERSIONS="$(printf '%s\n' "${ACTUAL_VERSIONS}" | sort -u)"
           test "$(printf '%s\n' "${UNIQUE_VERSIONS}" | wc -l | tr -d ' ')" = "1"
@@ -95,7 +95,7 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
-        run: ./gradlew --no-daemon build :kotlin-acyclic:publishAndReleaseToMavenCentral :gradle-plugin:publishAndReleaseToMavenCentral
+        run: ./gradlew --no-daemon build :kotlin-acyclic:publishAndReleaseToMavenCentral :kotlin-acyclic-gradle-plugin:publishAndReleaseToMavenCentral
 
   publish-compiler-plugin:
     needs:
@@ -127,11 +127,11 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Validate compiler plugin release version
-        run: ./gradlew --no-daemon '-PkotlinVersion=${{ matrix.kotlin-version }}' :compiler-plugin:assertReleaseVersion
+        run: ./gradlew --no-daemon '-PkotlinVersion=${{ matrix.kotlin-version }}' :kotlin-acyclic-plugin:assertReleaseVersion
 
       - name: Dry run compiler plugin build
         if: github.event_name == 'workflow_dispatch'
-        run: ./gradlew --no-daemon '-PkotlinVersion=${{ matrix.kotlin-version }}' :compiler-plugin:build
+        run: ./gradlew --no-daemon '-PkotlinVersion=${{ matrix.kotlin-version }}' :kotlin-acyclic-plugin:build
 
       - name: Publish compiler plugin to Maven Central
         if: github.event_name == 'push'
@@ -140,4 +140,4 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
-        run: ./gradlew --no-daemon '-PkotlinVersion=${{ matrix.kotlin-version }}' :compiler-plugin:publishAndReleaseToMavenCentral
+        run: ./gradlew --no-daemon '-PkotlinVersion=${{ matrix.kotlin-version }}' :kotlin-acyclic-plugin:publishAndReleaseToMavenCentral

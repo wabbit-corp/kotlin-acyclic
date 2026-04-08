@@ -1,0 +1,128 @@
+name: Docs Pages
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: corretto
+          java-version: "21"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
+      - name: Build Dokka documentation
+        run: ./gradlew --no-daemon :kotlin-acyclic:dokkaGeneratePublicationHtml :kotlin-acyclic-plugin:dokkaGeneratePublicationHtml :kotlin-acyclic-gradle-plugin:dokkaGeneratePublicationHtml :kotlin-acyclic-ij-plugin:dokkaGeneratePublicationHtml
+
+      - name: Assemble Pages site
+        run: |
+          SITE_DIR="$RUNNER_TEMP/pages-site"
+          mkdir -p "$SITE_DIR/kotlin-acyclic" "$SITE_DIR/kotlin-acyclic-plugin" "$SITE_DIR/kotlin-acyclic-gradle-plugin" "$SITE_DIR/kotlin-acyclic-ij-plugin"
+
+          cp -R library/build/dokka/html/. "$SITE_DIR/kotlin-acyclic/"
+          cp -R compiler-plugin/build/dokka/html/. "$SITE_DIR/kotlin-acyclic-plugin/"
+          cp -R gradle-plugin/build/dokka/html/. "$SITE_DIR/kotlin-acyclic-gradle-plugin/"
+          cp -R ij-plugin/build/dokka/html/. "$SITE_DIR/kotlin-acyclic-ij-plugin/"
+
+          cat > "$SITE_DIR/index.html" <<'HTML'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <title>kotlin-acyclic docs</title>
+            <style>
+              body {
+                margin: 0;
+                font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                background: #f4f0e8;
+                color: #1c1b18;
+              }
+              main {
+                max-width: 860px;
+                margin: 0 auto;
+                padding: 48px 24px 72px;
+              }
+              h1 {
+                font-size: 2.5rem;
+                margin-bottom: 0.5rem;
+              }
+              p {
+                line-height: 1.6;
+              }
+              ul {
+                padding-left: 1.25rem;
+              }
+              li {
+                margin: 0.6rem 0;
+              }
+              a {
+                color: #7b1f1f;
+              }
+              code {
+                background: rgba(0, 0, 0, 0.05);
+                padding: 0.12rem 0.3rem;
+                border-radius: 4px;
+              }
+            </style>
+          </head>
+          <body>
+            <main>
+              <h1>kotlin-acyclic</h1>
+              <p>
+                API docs and module reference for the <code>kotlin-acyclic</code> project family.
+              </p>
+              <ul>
+                <li><a href="./kotlin-acyclic/">kotlin-acyclic</a>: source annotations and public API</li>
+                <li><a href="./kotlin-acyclic-plugin/">kotlin-acyclic-plugin</a>: compiler plugin</li>
+                <li><a href="./kotlin-acyclic-gradle-plugin/">kotlin-acyclic-gradle-plugin</a>: Gradle integration</li>
+                <li><a href="./kotlin-acyclic-ij-plugin/">kotlin-acyclic-ij-plugin</a>: IntelliJ helper plugin</li>
+                <li><a href="https://github.com/wabbit-corp/kotlin-acyclic">Repository</a></li>
+              </ul>
+            </main>
+          </body>
+          </html>
+          HTML
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ runner.temp }}/pages-site
+
+  deploy-docs:
+    needs: build-docs
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

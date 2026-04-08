@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 package one.wabbit.acyclic.idea
 
 import com.intellij.openapi.module.Module
@@ -15,6 +17,19 @@ internal const val ACYCLIC_COMPILER_PLUGIN_MARKER = "kotlin-acyclic-plugin"
 internal const val ACYCLIC_GRADLE_PLUGIN_ID = "one.wabbit.acyclic"
 private const val ACYCLIC_GRADLE_PLUGIN_ARTIFACT_MARKER = "kotlin-acyclic-gradle-plugin"
 private const val MAX_GRADLE_BUILD_SCAN_DEPTH = 6
+private val GRADLE_PLUGIN_REFERENCE_PATTERNS =
+    listOf(
+        Regex("""(?m)^\s*id\s*\(\s*["']one\.wabbit\.acyclic["']\s*\)"""),
+        Regex("""(?m)^\s*id\s+["']one\.wabbit\.acyclic["']"""),
+        Regex("""(?m)^\s*id\s*=\s*["']one\.wabbit\.acyclic["']"""),
+        Regex("""(?m)^\s*[\w.-]+\s*=\s*\{[^}\n]*\bid\s*=\s*["']one\.wabbit\.acyclic["'][^}\n]*\}"""),
+        Regex("""(?m)^\s*apply\s+plugin\s*:\s*["']one\.wabbit\.acyclic["']"""),
+        Regex("""(?m)^\s*(?:classpath|implementation|api|compileOnly|runtimeOnly|testImplementation|testRuntimeOnly|ksp|kapt)\s*\(\s*["'][^"'\n]*one\.wabbit:kotlin-acyclic-gradle-plugin(?::[^"'\n]*)?["']\s*\)"""),
+        Regex("""(?m)^\s*(?:classpath|implementation|api|compileOnly|runtimeOnly|testImplementation|testRuntimeOnly|ksp|kapt)\s+["'][^"'\n]*one\.wabbit:kotlin-acyclic-gradle-plugin(?::[^"'\n]*)?["']"""),
+        Regex("""(?m)^\s*(?:classpath|implementation|api|compileOnly|runtimeOnly|testImplementation|testRuntimeOnly|ksp|kapt)\s+group\s*:\s*["']one\.wabbit["']\s*,\s*name\s*:\s*["']kotlin-acyclic-gradle-plugin["'](?:\s*,\s*version\s*:\s*["'][^"'\n]+["'])?"""),
+        Regex("""(?m)^\s*module\s*=\s*["'][^"'\n]*one\.wabbit:kotlin-acyclic-gradle-plugin(?::[^"'\n]*)?["']"""),
+        Regex("""(?m)^\s*[\w.-]+\s*=\s*\{[^}\n]*\bmodule\s*=\s*["'][^"'\n]*one\.wabbit:kotlin-acyclic-gradle-plugin(?::[^"'\n]*)?["'][^}\n]*\}"""),
+    )
 
 internal data class AcyclicCompilerPluginMatch(
     val ownerName: String,
@@ -96,9 +111,10 @@ internal object AcyclicCompilerPluginDetector {
     }
 
     fun isAcyclicGradlePluginReference(content: String): Boolean {
-        val normalized = content.lowercase()
-        return normalized.contains(ACYCLIC_GRADLE_PLUGIN_ID) ||
-            normalized.contains(ACYCLIC_GRADLE_PLUGIN_ARTIFACT_MARKER)
+        val normalized = stripCommentsPreservingStrings(content).lowercase()
+        return GRADLE_PLUGIN_REFERENCE_PATTERNS.any { pattern ->
+            pattern.containsMatchIn(normalized)
+        }
     }
 
     private fun scanModule(module: Module): AcyclicCompilerPluginMatch? {
@@ -131,5 +147,82 @@ internal object AcyclicCompilerPluginDetector {
         return fileName.endsWith(".gradle") ||
             fileName.endsWith(".gradle.kts") ||
             fileName.endsWith(".versions.toml")
+    }
+
+    private fun stripCommentsPreservingStrings(content: String): String {
+        val result = StringBuilder(content.length)
+        var index = 0
+        while (index < content.length) {
+            when {
+                content.startsWith("//", index) -> {
+                    index += 2
+                    while (index < content.length && content[index] != '\n') {
+                        index += 1
+                    }
+                }
+                content[index] == '#' -> {
+                    index += 1
+                    while (index < content.length && content[index] != '\n') {
+                        index += 1
+                    }
+                }
+                content.startsWith("/*", index) -> {
+                    index += 2
+                    while (index < content.length && !content.startsWith("*/", index)) {
+                        index += 1
+                    }
+                    if (index < content.length) {
+                        index += 2
+                    }
+                }
+                content.startsWith("\"\"\"", index) -> {
+                    result.append("\"\"\"")
+                    index += 3
+                    while (index < content.length && !content.startsWith("\"\"\"", index)) {
+                        result.append(content[index])
+                        index += 1
+                    }
+                    if (index < content.length) {
+                        result.append("\"\"\"")
+                        index += 3
+                    }
+                }
+                content.startsWith("'''", index) -> {
+                    result.append("'''")
+                    index += 3
+                    while (index < content.length && !content.startsWith("'''", index)) {
+                        result.append(content[index])
+                        index += 1
+                    }
+                    if (index < content.length) {
+                        result.append("'''")
+                        index += 3
+                    }
+                }
+                content[index] == '"' || content[index] == '\'' -> {
+                    val quote = content[index]
+                    result.append(quote)
+                    index += 1
+                    while (index < content.length) {
+                        val current = content[index]
+                        result.append(current)
+                        index += 1
+                        if (current == '\\' && index < content.length) {
+                            result.append(content[index])
+                            index += 1
+                            continue
+                        }
+                        if (current == quote) {
+                            break
+                        }
+                    }
+                }
+                else -> {
+                    result.append(content[index])
+                    index += 1
+                }
+            }
+        }
+        return result.toString()
     }
 }

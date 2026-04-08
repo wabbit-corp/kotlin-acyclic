@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-Wabbit-Public-Test-License-1.1
+
 package one.wabbit.acyclic
 
 import org.jetbrains.kotlin.cli.common.ExitCode
@@ -160,6 +162,34 @@ class CompilerIntegrationTest {
         assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
         assertContains(result.renderedMessages(), "sample/Test.kt::A")
         assertContains(result.renderedMessages(), "sample/Test.kt::seed()")
+        assertContains(result.renderedMessages(), "Circular dependency detected between Kotlin declarations")
+    }
+
+    @Test
+    fun `member property delegates participate in class construction cycles`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                class A {
+                    val next: Int by seedDelegate()
+                }
+
+                fun seedDelegate(): Lazy<Int> {
+                    b()
+                    return lazy { 0 }
+                }
+
+                fun b(): A = A()
+                """.trimIndent(),
+                declarations = "enabled",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertContains(result.renderedMessages(), "sample/Test.kt::A")
+        assertContains(result.renderedMessages(), "sample/Test.kt::seedDelegate()")
+        assertContains(result.renderedMessages(), "sample/Test.kt::b()")
         assertContains(result.renderedMessages(), "Circular dependency detected between Kotlin declarations")
     }
 
@@ -611,6 +641,53 @@ class CompilerIntegrationTest {
     }
 
     @Test
+    fun `typealias declarations participate in declaration order`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                fun use(value: Alias): Int = value.length
+
+                typealias Alias = String
+                """.trimIndent(),
+                declarations = "enabled",
+                declarationOrder = "bottom-up",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertContains(result.renderedMessages(), "sample/Test.kt::use(")
+        assertContains(result.renderedMessages(), "sample/Test.kt::Alias")
+        assertContains(result.renderedMessages(), "earlier declarations are required")
+    }
+
+    @Test
+    fun `cross file declaration recursion is ignored when compilation unit checks are disabled`() {
+        val result =
+            compileSources(
+                sources =
+                    mapOf(
+                        "sample/A.kt" to
+                            """
+                            package sample
+
+                            fun a(): Int = b()
+                            """.trimIndent(),
+                        "sample/B.kt" to
+                            """
+                            package sample
+
+                            fun b(): Int = a()
+                            """.trimIndent(),
+                    ),
+                declarations = "enabled",
+                compilationUnits = "disabled",
+            )
+
+        assertEquals(ExitCode.OK, result.exitCode, result.renderedMessages())
+    }
+
+    @Test
     fun `local declarations do not block top level declaration analysis`() {
         val result =
             compileSnippet(
@@ -622,6 +699,176 @@ class CompilerIntegrationTest {
                 fun use(): Int {
                     fun loop(): Int = loop()
                     return helper()
+                }
+                """.trimIndent(),
+                declarations = "enabled",
+                declarationOrder = "top-down",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertContains(result.renderedMessages(), "sample/Test.kt::use()")
+        assertContains(result.renderedMessages(), "sample/Test.kt::helper()")
+        assertContains(result.renderedMessages(), "later declarations are required")
+    }
+
+    @Test
+    fun `local property initializer contributes enclosing declaration dependency`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                fun helper(): Int = 1
+
+                fun use(): Int {
+                    val cached = helper()
+                    return cached
+                }
+                """.trimIndent(),
+                declarations = "enabled",
+                declarationOrder = "top-down",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertContains(result.renderedMessages(), "sample/Test.kt::use()")
+        assertContains(result.renderedMessages(), "sample/Test.kt::helper()")
+        assertContains(result.renderedMessages(), "later declarations are required")
+    }
+
+    @Test
+    fun `local function body contributes enclosing declaration dependency`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                fun helper(): Int = 1
+
+                fun use(): Int {
+                    fun hop(): Int = helper()
+                    return hop()
+                }
+                """.trimIndent(),
+                declarations = "enabled",
+                declarationOrder = "top-down",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertContains(result.renderedMessages(), "sample/Test.kt::use()")
+        assertContains(result.renderedMessages(), "sample/Test.kt::helper()")
+        assertContains(result.renderedMessages(), "later declarations are required")
+    }
+
+    @Test
+    fun `uninvoked local function body still contributes enclosing declaration dependency`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                fun helper(): Int = 1
+
+                fun use(): Int {
+                    fun hop(): Int = helper()
+                    return 0
+                }
+                """.trimIndent(),
+                declarations = "enabled",
+                declarationOrder = "top-down",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertContains(result.renderedMessages(), "sample/Test.kt::use()")
+        assertContains(result.renderedMessages(), "sample/Test.kt::helper()")
+        assertContains(result.renderedMessages(), "later declarations are required")
+    }
+
+    @Test
+    fun `mutual recursion via local helper is detected`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                fun a(): Int {
+                    fun hop(): Int = b()
+                    return hop()
+                }
+
+                fun b(): Int = a()
+                """.trimIndent(),
+                declarations = "enabled",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertContains(result.renderedMessages(), "sample/Test.kt::a()")
+        assertContains(result.renderedMessages(), "sample/Test.kt::b()")
+        assertContains(result.renderedMessages(), "Circular dependency detected between Kotlin declarations")
+    }
+
+    @Test
+    fun `declaration cycles suppress order diagnostics on the same edge`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                fun a(): Int = b()
+
+                fun b(): Int = a()
+                """.trimIndent(),
+                declarations = "enabled",
+                declarationOrder = "top-down",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertContains(result.renderedMessages(), "sample/Test.kt::a()")
+        assertContains(result.renderedMessages(), "sample/Test.kt::b()")
+        assertEquals(2, result.errorCountContaining("Circular dependency detected between Kotlin declarations"))
+        assertEquals(0, result.errorCountContaining("later declarations are required"))
+        assertEquals(0, result.errorCountContaining("earlier declarations are required"))
+    }
+
+    @Test
+    fun `local class member body contributes enclosing declaration dependency`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                fun helper(): Int = 1
+
+                fun use(): Int {
+                    class Local {
+                        fun hop(): Int = helper()
+                    }
+                    return Local().hop()
+                }
+                """.trimIndent(),
+                declarations = "enabled",
+                declarationOrder = "top-down",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertContains(result.renderedMessages(), "sample/Test.kt::use()")
+        assertContains(result.renderedMessages(), "sample/Test.kt::helper()")
+        assertContains(result.renderedMessages(), "later declarations are required")
+    }
+
+    @Test
+    fun `unused local class member body still contributes enclosing declaration dependency`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                fun helper(): Int = 1
+
+                fun use(): Int {
+                    class Local {
+                        fun hop(): Int = helper()
+                    }
+                    return 0
                 }
                 """.trimIndent(),
                 declarations = "enabled",
@@ -675,6 +922,26 @@ class CompilerIntegrationTest {
     }
 
     @Test
+    fun `nested class references from the enclosing class are treated as lexical containment`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                class Outer {
+                    fun make(): Inner = Inner()
+
+                    class Inner
+                }
+                """.trimIndent(),
+                declarations = "enabled",
+                declarationOrder = "bottom-up",
+            )
+
+        assertEquals(ExitCode.OK, result.exitCode, result.renderedMessages())
+    }
+
+    @Test
     fun `order diagnostics distinguish overload signatures`() {
         val result =
             compileSnippet(
@@ -724,6 +991,34 @@ class CompilerIntegrationTest {
         assertContains(bottomUp.renderedMessages(), "sample/Test.kt::use()")
         assertContains(bottomUp.renderedMessages(), "sample/Test.kt::helper()")
         assertContains(bottomUp.renderedMessages(), "earlier declarations are required")
+    }
+
+    @Test
+    fun `cycle and order diagnostics remain distinguishable when both occur in one file`() {
+        val result =
+            compileSnippet(
+                """
+                package sample
+
+                fun helper(): Int = 1
+
+                fun use(): Int = helper()
+
+                fun a(): Int = b()
+
+                fun b(): Int = a()
+                """.trimIndent(),
+                declarations = "enabled",
+                declarationOrder = "top-down",
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode, result.renderedMessages())
+        assertEquals(2, result.errorCountContaining("Circular dependency detected between Kotlin declarations"))
+        assertEquals(1, result.errorCountContaining("later declarations are required"))
+        assertContains(result.renderedMessages(), "sample/Test.kt::use()")
+        assertContains(result.renderedMessages(), "sample/Test.kt::helper()")
+        assertContains(result.renderedMessages(), "sample/Test.kt::a()")
+        assertContains(result.renderedMessages(), "sample/Test.kt::b()")
     }
 
     @Test

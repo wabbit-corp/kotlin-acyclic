@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-Wabbit-Public-Test-License-1.1
+
 package one.wabbit.acyclic
 
 import kotlin.test.Test
@@ -226,6 +228,42 @@ class DeclarationGraphTest {
                 ),
             )
 
+        assertTrue(graph.findOrderViolations().isEmpty())
+    }
+
+    @Test
+    fun `suppresses order violations inside any cyclic component`() {
+        val graph =
+            DeclarationGraph(
+                listOf(
+                    DeclarationNode(
+                        key = "a",
+                        displayName = "example/A.kt::foo",
+                        reportSource = null,
+                        annotationSource = null,
+                        dependencies = mapOf("b" to DeclarationDependencyEvidence("b", null)),
+                        sourceIndex = 1,
+                        acyclicEnabled = true,
+                        allowSelfRecursion = false,
+                        allowMutualRecursion = false,
+                        declarationOrder = AcyclicDeclarationOrder.TOP_DOWN,
+                    ),
+                    DeclarationNode(
+                        key = "b",
+                        displayName = "example/A.kt::bar",
+                        reportSource = null,
+                        annotationSource = null,
+                        dependencies = mapOf("a" to DeclarationDependencyEvidence("a", null)),
+                        sourceIndex = 0,
+                        acyclicEnabled = true,
+                        allowSelfRecursion = false,
+                        allowMutualRecursion = false,
+                        declarationOrder = AcyclicDeclarationOrder.TOP_DOWN,
+                    ),
+                ),
+            )
+
+        assertEquals(1, graph.findCycles().size)
         assertTrue(graph.findOrderViolations().isEmpty())
     }
 

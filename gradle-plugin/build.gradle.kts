@@ -34,13 +34,7 @@ abstract class GenerateAcyclicGradlePluginVersion : DefaultTask() {
 }
 
 repositories {
-    if (rootProject.file("settings.local.gradle.kts").isFile()) {
-        mavenLocal {
-            content {
-                includeGroup("one.wabbit")
-            }
-        }
-    }
+    google()
     mavenCentral()
 
     maven("https://jitpack.io")
@@ -76,7 +70,7 @@ mavenPublishing {
     signAllPublications()
     pom {
         name.set("kotlin-acyclic-gradle-plugin")
-        description.set("kotlin-acyclic-gradle-plugin")
+        description.set("Gradle plugin for one.wabbit.acyclic, with a typed acyclic DSL and automatic resolution of the Kotlin-matched compiler plugin.")
         url.set("https://github.com/wabbit-corp/kotlin-acyclic")
         licenses {
             license {
@@ -97,6 +91,14 @@ mavenPublishing {
             url.set("https://github.com/wabbit-corp/kotlin-acyclic")
             connection.set("scm:git:git://github.com/wabbit-corp/kotlin-acyclic.git")
             developerConnection.set("scm:git:ssh://git@github.com/wabbit-corp/kotlin-acyclic.git")
+        }
+    }
+}
+
+publishing {
+    publications.withType<org.gradle.api.publish.maven.MavenPublication>().configureEach {
+        if (name == "pluginMaven") {
+            artifactId = "kotlin-acyclic-gradle-plugin"
         }
     }
 }
@@ -230,7 +232,7 @@ gradlePlugin {
             id = "one.wabbit.acyclic"
             implementationClass = "one.wabbit.acyclic.gradle.AcyclicGradlePlugin"
             displayName = "Acyclic Gradle plugin"
-            description = "Gradle plugin for one.wabbit.acyclic."
+            description = "Gradle plugin for one.wabbit.acyclic, with a typed acyclic DSL and automatic resolution of the Kotlin-matched compiler plugin."
         }
     }
 }

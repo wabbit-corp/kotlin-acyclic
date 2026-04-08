@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: LicenseRef-Wabbit-Public-Test-License-1.1
+
 package one.wabbit.acyclic.idea
 
+import com.intellij.notification.NotificationType
 import java.nio.file.Files
 import java.util.MissingResourceException
 import kotlin.io.path.createDirectories
@@ -80,6 +83,142 @@ class AcyclicCompilerPluginDetectorTest {
     }
 
     @Test
+    fun `commented version catalog plugin id does not count as a Gradle reference`() {
+        assertFalse(
+            AcyclicCompilerPluginDetector.isAcyclicGradlePluginReference(
+                """
+                # acyclic = { id = "one.wabbit.acyclic", version = "0.0.1" }
+                [plugins]
+                kotlin = { id = "org.jetbrains.kotlin.jvm", version = "2.3.10" }
+                """.trimIndent(),
+            ),
+        )
+    }
+
+    @Test
+    fun `commented version catalog artifact coordinate does not count as a Gradle reference`() {
+        assertFalse(
+            AcyclicCompilerPluginDetector.isAcyclicGradlePluginReference(
+                """
+                [libraries]
+                # acyclic-gradle = { module = "one.wabbit:kotlin-acyclic-gradle-plugin", version = "0.0.1" }
+                kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version = "2.3.10" }
+                """.trimIndent(),
+            ),
+        )
+    }
+
+    @Test
+    fun `detects Groovy plugins block form`() {
+        assertTrue(
+            AcyclicCompilerPluginDetector.isAcyclicGradlePluginReference(
+                """
+                plugins {
+                    id 'one.wabbit.acyclic'
+                }
+                """.trimIndent(),
+            ),
+        )
+    }
+
+    @Test
+    fun `detects Groovy apply plugin form`() {
+        assertTrue(
+            AcyclicCompilerPluginDetector.isAcyclicGradlePluginReference(
+                """
+                apply plugin: 'one.wabbit.acyclic'
+                """.trimIndent(),
+            ),
+        )
+    }
+
+    @Test
+    fun `detects Groovy classpath dependency form`() {
+        assertTrue(
+            AcyclicCompilerPluginDetector.isAcyclicGradlePluginReference(
+                """
+                buildscript {
+                    dependencies {
+                        classpath 'one.wabbit:kotlin-acyclic-gradle-plugin:0.0.1'
+                    }
+                }
+                """.trimIndent(),
+            ),
+        )
+    }
+
+    @Test
+    fun `detects Groovy map notation dependency form`() {
+        assertTrue(
+            AcyclicCompilerPluginDetector.isAcyclicGradlePluginReference(
+                """
+                buildscript {
+                    dependencies {
+                        classpath group: 'one.wabbit', name: 'kotlin-acyclic-gradle-plugin', version: '0.0.1'
+                    }
+                }
+                """.trimIndent(),
+            ),
+        )
+    }
+
+    @Test
+    fun `commented plugin id does not count as a Gradle reference`() {
+        assertFalse(
+            AcyclicCompilerPluginDetector.isAcyclicGradlePluginReference(
+                """
+                // id("one.wabbit.acyclic")
+                plugins {
+                    kotlin("jvm")
+                }
+                """.trimIndent(),
+            ),
+        )
+    }
+
+    @Test
+    fun `string literal containing plugin syntax does not count as a Gradle reference`() {
+        assertFalse(
+            AcyclicCompilerPluginDetector.isAcyclicGradlePluginReference(
+                """
+                val doc = "plugins { id(\"one.wabbit.acyclic\") }"
+                plugins {
+                    kotlin("jvm")
+                }
+                """.trimIndent(),
+            ),
+        )
+    }
+
+    @Test
+    fun `string literal containing artifact syntax does not count as a Gradle reference`() {
+        assertFalse(
+            AcyclicCompilerPluginDetector.isAcyclicGradlePluginReference(
+                """
+                val doc = "classpath 'one.wabbit:kotlin-acyclic-gradle-plugin:0.0.1'"
+                plugins {
+                    kotlin("jvm")
+                }
+                """.trimIndent(),
+            ),
+        )
+    }
+
+    @Test
+    fun `string literal mentioning plugin id does not count as a Gradle reference`() {
+        assertFalse(
+            AcyclicCompilerPluginDetector.isAcyclicGradlePluginReference(
+                """
+                val note = "remember one.wabbit.acyclic later"
+                plugins {
+                    kotlin("jvm")
+                }
+                """.trimIndent(),
+            ),
+        )
+    }
+
+    @Test
     fun matchingGradleBuildFilesFindsPluginReferencesAndIgnoresBuildOutputs() {
         val projectRoot = Files.createTempDirectory("acyclic-idea-detector-test")
         projectRoot.resolve("build.gradle.kts").writeText(
@@ -94,6 +233,9 @@ class AcyclicCompilerPluginDetectorTest {
             """
             [plugins]
             acyclic = { id = "one.wabbit.acyclic", version = "0.0.1" }
+
+            [libraries]
+            # acyclic-gradle = { module = "one.wabbit:kotlin-acyclic-gradle-plugin", version = "0.0.1" }
             """.trimIndent(),
         )
         projectRoot.resolve("build/generated").createDirectories()
@@ -166,6 +308,44 @@ class AcyclicCompilerPluginDetectorTest {
     }
 
     @Test
+    fun `user initiated refresh does not report active support when registry update fails`() {
+        val notifications = mutableListOf<Triple<NotificationType, String, String>>()
+
+        val result =
+            AcyclicIdeSupportCoordinator.enableIfNeeded(
+                scan =
+                    AcyclicCompilerPluginScan(
+                        projectLevelMatch =
+                            AcyclicCompilerPluginMatch(
+                                ownerName = "demo",
+                                classpaths = listOf("/tmp/kotlin-acyclic-plugin.jar"),
+                            ),
+                        moduleMatches = emptyList(),
+                        gradleBuildFiles = emptyList(),
+                    ),
+                projectTrusted = true,
+                userInitiated = true,
+                registryAllowsOnlyBundledPlugins = true,
+                enableExternalPluginsForProjectSession = {
+                    throw MissingResourceException(
+                        "missing registry key",
+                        "Registry",
+                        EXTERNAL_K2_COMPILER_PLUGINS_REGISTRY_KEY,
+                    )
+                },
+                notify = { type, title, content ->
+                    notifications += Triple(type, title, content)
+                },
+            )
+
+        assertFalse(result.registryAlreadyEnabledForExternalPlugins)
+        assertFalse(result.registryUpdated)
+        assertEquals(1, notifications.size)
+        assertEquals(NotificationType.WARNING, notifications.single().first)
+        assertFalse(notifications.single().second.contains("active", ignoreCase = true))
+    }
+
+    @Test
     fun enabledMessageListsProjectAndModuleOwners() {
         val message =
             AcyclicIdeSupportCoordinator.buildEnabledMessage(
@@ -185,7 +365,7 @@ class AcyclicCompilerPluginDetectorTest {
                             ),
                         gradleBuildFiles = listOf("build.gradle.kts"),
                     ),
-                registryUpdated = true,
+                activationState = AcyclicIdeSupportActivationState.ENABLED_NOW,
             )
 
         assertTrue(message.contains("project settings"))

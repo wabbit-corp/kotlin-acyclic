@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 package one.wabbit.acyclic
 
 import org.jetbrains.kotlin.AbstractKtSourceElement
@@ -81,11 +83,9 @@ internal class DeclarationGraph(
             }
     }
     private val orderViolations: List<DeclarationOrderViolation> by lazy {
-        val allowedMutualCycleKeys =
+        val cycleKeysByNode =
             cycles
                 .asSequence()
-                .filterNot(DeclarationCycle::isSelfCycle)
-                .filter(DeclarationCycle::isAllowed)
                 .flatMap { cycle -> cycle.nodeKeys.asSequence().map { key -> key to cycle.cycleKey() } }
                 .toMap()
         buildList {
@@ -99,8 +99,8 @@ internal class DeclarationGraph(
                         return@forEach
                     }
                     if (
-                        allowedMutualCycleKeys[node.key] != null &&
-                        allowedMutualCycleKeys[node.key] == allowedMutualCycleKeys[targetNode.key]
+                        cycleKeysByNode[node.key] != null &&
+                        cycleKeysByNode[node.key] == cycleKeysByNode[targetNode.key]
                     ) {
                         return@forEach
                     }

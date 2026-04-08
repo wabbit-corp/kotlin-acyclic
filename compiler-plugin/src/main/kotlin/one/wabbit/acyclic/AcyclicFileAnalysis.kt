@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 package one.wabbit.acyclic
 
 import org.jetbrains.kotlin.AbstractKtSourceElement
@@ -38,6 +40,7 @@ import org.jetbrains.kotlin.fir.types.ConeDefinitelyNotNullType
 import org.jetbrains.kotlin.fir.types.ConeIntersectionType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
+import org.jetbrains.kotlin.fir.types.FirUserTypeRef
 import org.jetbrains.kotlin.fir.types.classLikeLookupTagIfAny
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.isMarkedNullable
@@ -289,6 +292,10 @@ private class DeclarationNodeAnalyzer(
                 fileKey = fileKey,
                 rootLookupKey = lookupKey,
                 ancestorLookupKeys = ancestorLookupKeys,
+                sameFileTypeAliasesBySimpleName = containingFile.uniqueTrackedTypeAliasesBySimpleName(),
+                lexicalContainmentClassRanges =
+                    (parentDeclarations.filterIsInstance<FirRegularClass>() + listOfNotNull(declaration as? FirRegularClass))
+                        .mapNotNull(::sourceOffsetsRange),
             )
         dependencyVisitor.collectFrom(declaration)
         val moduleDeclarationOrder = configuration.declarationOrder
@@ -356,6 +363,41 @@ private fun MutableSet<String>.collectTrackedDeclarationKeys(
     }
 }
 
+@OptIn(DirectDeclarationsAccess::class)
+private fun FirFile.uniqueTrackedTypeAliasesBySimpleName(): Map<String, FirTypeAlias> {
+    val aliasesByName = linkedMapOf<String, MutableList<FirTypeAlias>>()
+
+    fun collect(declaration: FirDeclaration) {
+        when (declaration) {
+            is FirTypeAlias -> aliasesByName.getOrPut(declaration.name.asString()) { mutableListOf() }.add(declaration)
+            is FirRegularClass -> declaration.declarations.forEach(::collect)
+            else -> Unit
+        }
+    }
+
+    declarations.forEach(::collect)
+    return aliasesByName.mapNotNull { (name, aliases) ->
+        aliases.singleOrNull()?.let { alias -> name to alias }
+    }.toMap(linkedMapOf())
+}
+
+private data class SourceOffsetsRange(
+    val startOffset: Int,
+    val endOffset: Int,
+) {
+    fun strictlyContains(other: SourceOffsetsRange): Boolean =
+        startOffset <= other.startOffset && endOffset >= other.endOffset && this != other
+}
+
+private fun sourceOffsetsRange(declaration: FirDeclaration): SourceOffsetsRange? =
+    declaration.realSource()?.let(::sourceOffsetsRange)
+
+private fun sourceOffsetsRange(source: AbstractKtSourceElement): SourceOffsetsRange =
+    SourceOffsetsRange(
+        startOffset = source.startOffset,
+        endOffset = source.endOffset,
+    )
+
 @OptIn(org.jetbrains.kotlin.fir.symbols.SymbolInternals::class)
 private fun CheckerContext.isLocalTrackedDeclaration(
     declaration: FirDeclaration,
@@ -416,6 +458,8 @@ private class SingleDeclarationDependencyVisitor(
     private val fileKey: String,
     private val rootLookupKey: String,
     private val ancestorLookupKeys: Set<String>,
+    private val sameFileTypeAliasesBySimpleName: Map<String, FirTypeAlias>,
+    private val lexicalContainmentClassRanges: List<SourceOffsetsRange>,
 ) : FirDefaultVisitorVoid() {
     private val dependencyEvidence: MutableMap<String, DeclarationDependencyEvidence> = linkedMapOf()
 
@@ -545,7 +589,24 @@ private class SingleDeclarationDependencyVisitor(
                 ignoreAncestorTypeReference = true,
             )
         }
+        resolvedTypeRef.delegatedTypeRef?.accept(this)
         super.visitResolvedTypeRef(resolvedTypeRef)
+    }
+
+    override fun visitUserTypeRef(userTypeRef: FirUserTypeRef) {
+        val referencedTypeAlias =
+            userTypeRef.qualifier.lastOrNull()
+                ?.name
+                ?.asString()
+                ?.let(sameFileTypeAliasesBySimpleName::get)
+        if (referencedTypeAlias != null) {
+            recordDependency(
+                declaration = referencedTypeAlias,
+                source = userTypeRef.source,
+                ignoreAncestorTypeReference = true,
+            )
+        }
+        super.visitUserTypeRef(userTypeRef)
     }
 
     private fun recordDependency(
@@ -553,14 +614,25 @@ private class SingleDeclarationDependencyVisitor(
         source: AbstractKtSourceElement?,
         ignoreAncestorTypeReference: Boolean,
     ) {
+        val targetDeclaration = symbol.toTrackedDeclaration(session) ?: return
+        recordDependency(
+            declaration = targetDeclaration,
+            source = source,
+            ignoreAncestorTypeReference = ignoreAncestorTypeReference,
+        )
+    }
+
+    private fun recordDependency(
+        declaration: FirDeclaration,
+        source: AbstractKtSourceElement?,
+        ignoreAncestorTypeReference: Boolean,
+    ) {
         val realSource = source.realOrNull() ?: return
-        val targetFile = session.firProvider.getContainingFile(symbol) ?: return
-        if (targetFile.fileKey() != fileKey) {
+        val targetLookupKey = declarationLookupKey(declaration) ?: return
+        val targetSourceRange = sourceOffsetsRange(declaration) ?: return
+        if (shouldIgnoreLexicalContainmentReference(declaration, targetSourceRange)) {
             return
         }
-
-        val targetDeclaration = symbol.toTrackedDeclaration(session) ?: return
-        val targetLookupKey = declarationLookupKey(targetDeclaration) ?: return
         if (targetLookupKey in ancestorLookupKeys) {
             return
         }
@@ -574,6 +646,15 @@ private class SingleDeclarationDependencyVisitor(
             DeclarationDependencyEvidence(targetNodeKey, realSource),
         )
     }
+
+    private fun shouldIgnoreLexicalContainmentReference(
+        targetDeclaration: FirDeclaration,
+        targetSourceRange: SourceOffsetsRange,
+    ): Boolean =
+        targetDeclaration is FirRegularClass &&
+            lexicalContainmentClassRanges.any { containerRange ->
+                containerRange.strictlyContains(targetSourceRange)
+            }
 }
 
 private fun declarationEnabled(

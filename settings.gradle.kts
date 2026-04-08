@@ -47,12 +47,12 @@ pluginManagement {
 
 include(":kotlin-acyclic")
 project(":kotlin-acyclic").projectDir = file("library")
-include(":compiler-plugin")
-project(":compiler-plugin").projectDir = file("compiler-plugin")
-include(":ij-plugin")
-project(":ij-plugin").projectDir = file("ij-plugin")
-include(":gradle-plugin")
-project(":gradle-plugin").projectDir = file("gradle-plugin")
+include(":kotlin-acyclic-plugin")
+project(":kotlin-acyclic-plugin").projectDir = file("compiler-plugin")
+include(":kotlin-acyclic-ij-plugin")
+project(":kotlin-acyclic-ij-plugin").projectDir = file("ij-plugin")
+include(":kotlin-acyclic-gradle-plugin")
+project(":kotlin-acyclic-gradle-plugin").projectDir = file("gradle-plugin")
 val localSettingsFile = file("settings.local.gradle.kts")
 if (localSettingsFile.isFile) {
     apply(from = localSettingsFile)

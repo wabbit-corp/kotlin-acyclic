@@ -303,6 +303,8 @@ To run the compiler plugin against a specific supported Kotlin line:
 
 ## Documentation Map
 
+- Published API docs: `https://wabbit-corp.github.io/kotlin-acyclic/`
+- [CHANGELOG.md](CHANGELOG.md): release notes and public-change history
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): repo-wide architecture, configuration flow, and analysis boundaries
 - [docs/user-guide.md](docs/user-guide.md): installation, configuration, rule semantics, and source-level control model
 - [docs/development.md](docs/development.md): local build, test, versioning, publishing, and composite-build notes

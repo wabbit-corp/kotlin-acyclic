@@ -4,16 +4,9 @@ import org.jetbrains.dokka.gradle.DokkaExtension
 import org.jetbrains.dokka.gradle.engine.plugins.DokkaHtmlPluginParameters
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import one.wabbit.acyclic.build.firCompatibilitySourceDirectoryName
 
 repositories {
-    if (rootProject.file("settings.local.gradle.kts").isFile()) {
-        mavenLocal {
-            content {
-                includeGroup("one.wabbit")
-            }
-        }
-    }
+    google()
     mavenCentral()
 
     maven("https://jitpack.io")
@@ -56,7 +49,7 @@ mavenPublishing {
     signAllPublications()
     pom {
         name.set("kotlin-acyclic-plugin")
-        description.set("kotlin-acyclic-plugin")
+        description.set("K2/FIR compiler plugin for enforcing structural acyclicity rules in Kotlin source, published per supported Kotlin line.")
         url.set("https://github.com/wabbit-corp/kotlin-acyclic")
         licenses {
             license {
@@ -98,7 +91,15 @@ dependencies {
 }
 
 val compilerCompatibilitySourceDirectory =
-    layout.projectDirectory.dir(firCompatibilitySourceDirectoryName(kotlinVersion))
+    layout.projectDirectory.dir(
+        when {
+            kotlinVersion.startsWith("2.3") -> "src/kotlin2_3/kotlin"
+
+            kotlinVersion.startsWith("2.4") -> "src/kotlin2_4/kotlin"
+
+            else -> error("Unsupported Kotlin version $kotlinVersion")
+        },
+    )
 
 kotlin {
     sourceSets.named("main") {

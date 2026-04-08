@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 package one.wabbit.acyclic.idea
 
 import com.intellij.ide.trustedProjects.TrustedProjects
@@ -13,7 +15,16 @@ internal data class AcyclicIdeSupportResult(
     val projectTrusted: Boolean,
     val registryAlreadyEnabledForExternalPlugins: Boolean,
     val registryUpdated: Boolean,
+    val activationState: AcyclicIdeSupportActivationState,
 )
+
+internal enum class AcyclicIdeSupportActivationState {
+    NOT_NEEDED,
+    WAITING_FOR_TRUST,
+    ALREADY_ENABLED,
+    ENABLED_NOW,
+    FAILED_TO_ENABLE,
+}
 
 internal object AcyclicIdeSupportCoordinator {
     private val logger = Logger.getInstance(AcyclicIdeSupportCoordinator::class.java)
@@ -62,6 +73,7 @@ internal object AcyclicIdeSupportCoordinator {
                 projectTrusted = projectTrusted,
                 registryAlreadyEnabledForExternalPlugins = !registryAllowsOnlyBundledPlugins,
                 registryUpdated = false,
+                activationState = AcyclicIdeSupportActivationState.NOT_NEEDED,
             )
         }
 
@@ -76,36 +88,53 @@ internal object AcyclicIdeSupportCoordinator {
                 projectTrusted = false,
                 registryAlreadyEnabledForExternalPlugins = !registryAllowsOnlyBundledPlugins,
                 registryUpdated = false,
+                activationState = AcyclicIdeSupportActivationState.WAITING_FOR_TRUST,
             )
         }
 
-        var registryUpdated = false
-        if (registryAllowsOnlyBundledPlugins) {
-            logger.info(
-                "Temporarily enabling non-bundled K2 compiler plugins for the current project session",
-            )
-            registryUpdated = enableExternalPluginsForProjectSessionSafely(enableExternalPluginsForProjectSession)
-        }
+        val activationState =
+            if (!registryAllowsOnlyBundledPlugins) {
+                AcyclicIdeSupportActivationState.ALREADY_ENABLED
+            } else {
+                logger.info(
+                    "Temporarily enabling non-bundled K2 compiler plugins for the current project session",
+                )
+                if (enableExternalPluginsForProjectSessionSafely(enableExternalPluginsForProjectSession)) {
+                    AcyclicIdeSupportActivationState.ENABLED_NOW
+                } else {
+                    AcyclicIdeSupportActivationState.FAILED_TO_ENABLE
+                }
+            }
+        val registryUpdated = activationState == AcyclicIdeSupportActivationState.ENABLED_NOW
 
-        if (registryUpdated || userInitiated) {
-            notify(
-                NotificationType.INFORMATION,
-                "Acyclic IDE support is active",
-                buildEnabledMessage(scan, registryUpdated),
-            )
+        when {
+            activationState == AcyclicIdeSupportActivationState.ENABLED_NOW ||
+                (activationState == AcyclicIdeSupportActivationState.ALREADY_ENABLED && userInitiated) ->
+                notify(
+                    NotificationType.INFORMATION,
+                    "Acyclic IDE support is active",
+                    buildEnabledMessage(scan, activationState),
+                )
+            activationState == AcyclicIdeSupportActivationState.FAILED_TO_ENABLE && userInitiated ->
+                notify(
+                    NotificationType.WARNING,
+                    "Acyclic IDE support could not be enabled",
+                    buildFailedEnablementMessage(scan),
+                )
         }
 
         return AcyclicIdeSupportResult(
             scan = scan,
             projectTrusted = true,
-            registryAlreadyEnabledForExternalPlugins = !registryAllowsOnlyBundledPlugins,
+            registryAlreadyEnabledForExternalPlugins = activationState == AcyclicIdeSupportActivationState.ALREADY_ENABLED,
             registryUpdated = registryUpdated,
+            activationState = activationState,
         )
     }
 
     internal fun buildEnabledMessage(
         scan: AcyclicCompilerPluginScan,
-        registryUpdated: Boolean,
+        activationState: AcyclicIdeSupportActivationState,
     ): String {
         val owners =
             buildList {
@@ -116,13 +145,28 @@ internal object AcyclicIdeSupportCoordinator {
                 }
             }
         val prefix =
-            if (registryUpdated) {
-                "Enabled all non-bundled K2 compiler plugins for this project session."
-            } else {
-                "All non-bundled K2 compiler plugins were already enabled for this project session."
+            when (activationState) {
+                AcyclicIdeSupportActivationState.ENABLED_NOW ->
+                    "Enabled all non-bundled K2 compiler plugins for this project session."
+                AcyclicIdeSupportActivationState.ALREADY_ENABLED ->
+                    "All non-bundled K2 compiler plugins were already enabled for this project session."
+                else ->
+                    error("buildEnabledMessage only supports successful activation states")
             }
         val ownerSummary = owners.joinToString(", ")
         return "$prefix Detected kotlin-acyclic-plugin in $ownerSummary."
+    }
+
+    internal fun buildFailedEnablementMessage(scan: AcyclicCompilerPluginScan): String {
+        val owners =
+            buildList {
+                scan.projectLevelMatch?.let { add("project settings") }
+                addAll(scan.moduleMatches.map { match -> "module ${match.ownerName}" })
+                if (scan.gradleBuildFiles.isNotEmpty()) {
+                    add("Gradle build files")
+                }
+            }.joinToString(", ")
+        return "Detected kotlin-acyclic-plugin in $owners, but IntelliJ could not enable all non-bundled K2 compiler plugins for this project session."
     }
 
     private fun notify(

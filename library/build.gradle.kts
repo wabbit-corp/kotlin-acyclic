@@ -7,14 +7,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 repositories {
-    if (rootProject.file("settings.local.gradle.kts").isFile()) {
-        mavenLocal {
-            content {
-                includeGroup("one.wabbit")
-            }
-        }
-    }
-
     google()
 
     mavenCentral()
@@ -52,7 +44,7 @@ mavenPublishing {
     signAllPublications()
     pom {
         name.set("kotlin-acyclic")
-        description.set("kotlin-acyclic")
+        description.set("Source-retained Kotlin Multiplatform annotations and enums for expressing structural acyclicity policy in Kotlin source.")
         url.set("https://github.com/wabbit-corp/kotlin-acyclic")
         licenses {
             license {

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-Wabbit-Public-Test-License-1.1
+
 package one.wabbit.acyclic.gradle
 
 import org.gradle.testfixtures.ProjectBuilder

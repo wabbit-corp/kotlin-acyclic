@@ -4,13 +4,19 @@
 
 Most projects should apply `one.wabbit.acyclic` through the companion Gradle plugin, but this module is the actual compiler-side implementation and is the right entry point for direct compiler integration, build-tool adapters, and Dokka API documentation.
 
+Use this module when you need direct compiler wiring or want to inspect the compiler-side behavior. For normal build setup, start with the [Gradle plugin README](../gradle-plugin/README.md), the [user guide](../docs/user-guide.md), and the [API reference](../docs/api-reference.md).
+
+## Status
+
+This module is pre-1.0 and publishes Kotlin-line-specific variants for the repository's supported Kotlin matrix.
+
 ## Artifact
 
 The compiler plugin is published as a Kotlin-line-specific artifact:
 
 - `one.wabbit:kotlin-acyclic-plugin:0.0.1-kotlin-2.3.10`
 
-The `-kotlin-<kotlinVersion>` suffix is intentional. FIR compiler-plugin binaries are coupled to the Kotlin compiler APIs they were built against.
+The `-kotlin-<kotlinVersion>` suffix matters. FIR compiler-plugin binaries are coupled to the Kotlin compiler APIs they were built against.
 
 The current release train publishes Kotlin-specific compiler-plugin variants for:
 
@@ -29,7 +35,7 @@ The compiler plugin evaluates three rule families:
 
 Compilation-unit acyclicity reports cycles between Kotlin source files.
 
-Declaration acyclicity reports recursive dependency structure between tracked declarations in a file. The declaration graph is intentionally file-local today.
+Declaration acyclicity reports recursive dependency structure between tracked declarations in a file. The declaration graph is file-local today.
 
 Declaration order adds an optional directional rule on top of declaration acyclicity and checks whether declaration dependencies respect `top-down` or `bottom-up` source order.
 
@@ -68,7 +74,7 @@ For declaration order specifically:
 - `@file:Acyclic(order = ...)` overrides that default for tracked declarations in the file
 - `@Acyclic(order = DEFAULT)` on a declaration resets that declaration back to the module default
 
-## Direct Usage
+## Installation And Direct Usage
 
 If you are wiring the plugin into the Kotlin compiler directly:
 
@@ -80,6 +86,8 @@ If you are wiring the plugin into the Kotlin compiler directly:
 ```
 
 If source code uses `one.wabbit.acyclic.*`, the annotations library still needs to be present on the compilation classpath.
+
+To verify the plugin is active, compile a small source set with `declarations=enabled` and a same-file mutual recursion pair such as `fun a() = b(); fun b() = a()`. The compilation should fail with a declaration-cycle diagnostic.
 
 ## Analysis Model
 
@@ -96,7 +104,7 @@ The critical design choice is semantic analysis. Dependencies come from resolved
 
 ## Scope
 
-Declaration analysis intentionally distinguishes lexical containment from dependency.
+Declaration analysis distinguishes lexical containment from dependency.
 
 Examples that remain legal:
 
@@ -111,7 +119,7 @@ Local declarations still matter semantically: their resolved dependencies are at
 
 ### Legal scoping
 
-These shapes are intentionally legal because they express containment or self-typing, not sibling recursion:
+These shapes stay legal because they express containment or self-typing, not sibling recursion:
 
 ```kotlin
 package sample
@@ -200,13 +208,4 @@ Use this artifact directly when:
 
 If you are using Gradle, prefer [`../gradle-plugin/README.md`](../gradle-plugin/README.md).
 
-## Related Docs
-
-- [`../README.md`](../README.md)
-- [`../docs/user-guide.md`](../docs/user-guide.md)
-- [`../docs/development.md`](../docs/development.md)
-- [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)
-- [`../library/README.md`](../library/README.md)
-- [`../gradle-plugin/README.md`](../gradle-plugin/README.md)
-- [`GOAL.md`](GOAL.md)
-- [`WALKTHROUGH.md`](WALKTHROUGH.md)
+Release notes live in [`../CHANGELOG.md`](../CHANGELOG.md). For diagnostics and setup issues, start with [`../docs/troubleshooting.md`](../docs/troubleshooting.md) and the contribution/support guidance in the [root README](../README.md).

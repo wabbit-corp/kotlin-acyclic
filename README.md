@@ -2,6 +2,89 @@
 
 `kotlin-acyclic` is a Kotlin compiler-plugin family for enforcing structural acyclicity rules in source code.
 
+## Quick Start
+
+For a JVM project, the smallest useful setup is:
+
+```kotlin
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+    }
+}
+
+rootProject.name = "acyclic-quickstart"
+```
+
+```kotlin
+// build.gradle.kts
+import one.wabbit.acyclic.gradle.AcyclicDeclarationOrderMode
+import one.wabbit.acyclic.gradle.AcyclicEnforcementMode
+
+plugins {
+    kotlin("jvm") version "2.3.10"
+    application
+    id("one.wabbit.acyclic") version "0.0.1"
+}
+
+dependencies {
+    implementation("one.wabbit:kotlin-acyclic:0.0.1")
+}
+
+kotlin {
+    jvmToolchain(21)
+}
+
+application {
+    mainClass = "sample.MainKt"
+}
+
+acyclic {
+    compilationUnits.set(AcyclicEnforcementMode.OPT_IN)
+    declarations.set(AcyclicEnforcementMode.ENABLED)
+    declarationOrder.set(AcyclicDeclarationOrderMode.TOP_DOWN)
+}
+```
+
+Then add `src/main/kotlin/sample/Main.kt`:
+
+<!-- quickstart-source:start -->
+```kotlin
+package sample
+
+fun main() {
+    println(render())
+}
+
+fun render(): String = helper()
+
+fun helper(): String = "acyclic"
+```
+<!-- quickstart-source:end -->
+
+Run it:
+
+```bash
+./gradlew run
+```
+
+Expected output:
+
+```text
+acyclic
+```
+
+This example is ordered for `TOP_DOWN`: earlier declarations depend only on later declarations. In most builds, the Gradle plugin resolves the Kotlin-matched compiler-plugin artifact automatically.
+
 It is built for teams that want compile-time guardrails around declaration recursion, file-to-file dependency cycles, and source-order conventions without relying on lint-only heuristics or import-string analysis.
 
 ## Status
@@ -18,7 +101,7 @@ This repository is pre-1.0 and K2-only.
 This project is trying to be strict without becoming magical.
 
 - dependency edges come from resolved semantics, not import-string heuristics
-- declaration analysis is intentionally scoped so users can predict what the rule means
+- declaration analysis stays scoped so users can predict what the rule means
 - escape hatches are explicit and all-participants, not partial suppression tricks
 - current limits are documented as product boundaries rather than treated as accidental quirks
 
@@ -51,61 +134,20 @@ The project enforces three related rule families.
 | Declaration acyclicity | recursive dependency structure between tracked declarations | same file |
 | Declaration order | wrong-direction declaration dependencies under `TOP_DOWN` or `BOTTOM_UP` | same file |
 
-Important current boundary:
+Current boundary:
 
-- declaration analysis is intentionally file-local today
+- declaration analysis is file-local today
 - top-level declarations and declarations nested inside classes become declaration nodes
 - local declarations are not separate nodes, but their resolved dependencies are attributed to the enclosing tracked declaration
 
 ## Current Boundaries
 
-These are intentional current boundaries, not hidden surprises:
+These are current product boundaries, not hidden surprises:
 
 - declaration analysis is same-file only
 - cross-file declaration recursion is enforced by compilation-unit analysis, not by a module-wide declaration graph
 - lexical containment is distinguished from semantic dependency for shapes like self return types, nested type containment, and enclosing-type references
 - the rule set is structural and semantic, not arbitrary runtime recursion analysis
-
-## Quick Start
-
-Assuming Maven Central publication:
-
-```kotlin
-// settings.gradle.kts
-pluginManagement {
-    repositories {
-        gradlePluginPortal()
-        mavenCentral()
-    }
-}
-```
-
-```kotlin
-// build.gradle.kts
-import one.wabbit.acyclic.gradle.AcyclicDeclarationOrderMode
-import one.wabbit.acyclic.gradle.AcyclicEnforcementMode
-
-plugins {
-    kotlin("jvm") version "2.3.10"
-    id("one.wabbit.acyclic") version "0.0.1"
-}
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation("one.wabbit:kotlin-acyclic:0.0.1")
-}
-
-acyclic {
-    compilationUnits.set(AcyclicEnforcementMode.OPT_IN)
-    declarations.set(AcyclicEnforcementMode.ENABLED)
-    declarationOrder.set(AcyclicDeclarationOrderMode.TOP_DOWN)
-}
-```
-
-In most builds, that is all you need. The Gradle plugin resolves the Kotlin-matched compiler-plugin artifact automatically.
 
 ## Default Behavior
 
@@ -115,7 +157,7 @@ The Gradle plugin defaults are conservative:
 - `declarations = DISABLED`
 - `declarationOrder = NONE`
 
-That means:
+In practice:
 
 - file-level checks are available but not forced
 - declaration-level checks stay off until explicitly enabled
@@ -203,7 +245,7 @@ If an edge is already part of a reported declaration cycle, the cycle diagnostic
 
 ### Explicit opt-outs
 
-Opt-outs are intentionally narrow. A cycle is exempt only when every participant opts out:
+Opt-outs are narrow. A cycle is exempt only when every participant opts out:
 
 ```kotlin
 package sample
@@ -276,10 +318,7 @@ The first resolves the Gradle plugin ID. The second lets Gradle substitute the a
 
 The IntelliJ plugin in this repository does not implement separate IDE-native inspections yet. Its current job is to help the bundled Kotlin IDE plugin load the external compiler plugin registrar for trusted projects that already apply `kotlin-acyclic`.
 
-Important detail:
-
-- IntelliJ only exposes a coarse registry switch here
-- enabling support for `kotlin-acyclic` enables all non-bundled K2 compiler plugins for the current trusted project session, not just this one
+IntelliJ only exposes a coarse registry switch here, so enabling support for `kotlin-acyclic` enables all non-bundled K2 compiler plugins for the current trusted project session, not just this one.
 
 ## Build And Test
 
@@ -306,6 +345,9 @@ To run the compiler plugin against a specific supported Kotlin line:
 - Published API docs: `https://wabbit-corp.github.io/kotlin-acyclic/`
 - [CHANGELOG.md](CHANGELOG.md): release notes and public-change history
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): repo-wide architecture, configuration flow, and analysis boundaries
+- [docs/api-reference.md](docs/api-reference.md): public API inventory and Dokka generation commands
+- [docs/migration.md](docs/migration.md): versioning policy, compatibility notes, and upgrade checklist
+- [docs/troubleshooting.md](docs/troubleshooting.md): common diagnostics, causes, and fixes
 - [docs/user-guide.md](docs/user-guide.md): installation, configuration, rule semantics, and source-level control model
 - [docs/development.md](docs/development.md): local build, test, versioning, publishing, and composite-build notes
 - [library/README.md](library/README.md): source-level annotations and precedence details
@@ -321,17 +363,17 @@ If you are new to the repository, this order usually works well:
 
 1. [README.md](./README.md)
 2. [docs/user-guide.md](./docs/user-guide.md)
-3. [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
-4. [library/README.md](./library/README.md)
-5. [gradle-plugin/README.md](./gradle-plugin/README.md)
-6. [compiler-plugin/README.md](./compiler-plugin/README.md)
-7. [compiler-plugin/PLAN.md](./compiler-plugin/PLAN.md)
+3. [docs/troubleshooting.md](./docs/troubleshooting.md)
+4. [docs/api-reference.md](./docs/api-reference.md)
+5. [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+6. [library/README.md](./library/README.md)
+7. [gradle-plugin/README.md](./gradle-plugin/README.md)
+8. [compiler-plugin/README.md](./compiler-plugin/README.md)
+9. [compiler-plugin/PLAN.md](./compiler-plugin/PLAN.md)
 
 ## Licensing
 
 This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) for open source use.
-
-For commercial use, contact Wabbit Consulting Corporation at `wabbit@wabbit.one`.
 
 ## Contributing
 

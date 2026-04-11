@@ -1,6 +1,6 @@
 # kotlin-acyclic Architecture
 
-This document explains how the `kotlin-acyclic` repository is structured, how configuration flows through it, and what semantic boundaries the current implementation intentionally enforces.
+This document explains how the `kotlin-acyclic` repository is structured, how configuration flows through it, and what semantic boundaries the current implementation enforces.
 
 ## Repository Topology
 
@@ -100,7 +100,7 @@ Detects recursive dependency structure between tracked declarations.
 
 Key properties:
 
-- intentionally file-local today
+- file-local today
 - tracked declaration nodes include top-level declarations and declarations nested inside classes
 - local declarations are not separate nodes
 - dependencies discovered inside local declarations are attributed to the enclosing tracked declaration
@@ -123,7 +123,7 @@ Current reporting policy:
 
 ## Current Semantic Boundaries
 
-These are intentional current boundaries, not accidents:
+These are current product boundaries, not accidents:
 
 - declaration analysis is same-file only
 - cross-file declaration edges are ignored by the declaration graph
@@ -152,7 +152,7 @@ The repository uses three complementary layers:
 - compiler integration tests for real FIR-driven semantics
 - real-project proving against sibling repositories
 
-The project direction is intentionally:
+The project direction is:
 
 - regressions first
 - semantic changes second

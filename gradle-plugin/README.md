@@ -4,6 +4,12 @@
 
 It applies the compiler plugin to Kotlin JVM and Kotlin Multiplatform compilations, exposes a normal `acyclic {}` DSL, and resolves the Kotlin-matched compiler-plugin artifact automatically.
 
+If you want compile-time enforcement of file cycles, same-file declaration cycles, or declaration-order rules in a normal Gradle build, this is the entry point to use. The [root README](../README.md), [user guide](../docs/user-guide.md), and [API reference](../docs/api-reference.md) cover the broader model.
+
+## Status
+
+This module is pre-1.0 and tracks the repository Kotlin compatibility matrix.
+
 ## Plugin Coordinates
 
 - plugin id: `one.wabbit.acyclic`
@@ -14,9 +20,9 @@ The annotations library remains a normal dependency:
 
 - `one.wabbit:kotlin-acyclic:0.0.1`
 
-## Installation
+## Quick Start
 
-Assuming Maven Central publication:
+Use the normal Gradle plugin and dependency repositories:
 
 ```kotlin
 // settings.gradle.kts
@@ -27,6 +33,8 @@ pluginManagement {
     }
 }
 ```
+
+To verify the plugin is active, enable `declarations.set(AcyclicEnforcementMode.ENABLED)`, add a same-file mutual recursion pair such as `fun a() = b(); fun b() = a()`, and run `./gradlew compileKotlin`. The build should fail with a declaration-cycle diagnostic.
 
 ```kotlin
 // build.gradle.kts
@@ -192,21 +200,12 @@ The Gradle plugin is a typed layer over raw compiler-plugin options. It forwards
 
 If you need direct compiler wiring details, see [`../compiler-plugin/README.md`](../compiler-plugin/README.md).
 
-## Related Docs
-
-- [`../README.md`](../README.md)
-- [`../docs/user-guide.md`](../docs/user-guide.md)
-- [`../docs/development.md`](../docs/development.md)
-- [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)
-- [`../library/README.md`](../library/README.md)
-- [`../compiler-plugin/README.md`](../compiler-plugin/README.md)
-
 ## Licensing
 
 This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) for open source use.
 
-For commercial use, contact Wabbit Consulting Corporation at `wabbit@wabbit.one`.
-
 ## Contributing
 
 Before contributions can be merged, contributors need to agree to the repository CLA.
+
+Release notes live in [`../CHANGELOG.md`](../CHANGELOG.md). For support, troubleshooting, and contribution guidance, start with [`../docs/troubleshooting.md`](../docs/troubleshooting.md) and the [root README](../README.md).

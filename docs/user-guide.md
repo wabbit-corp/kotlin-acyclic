@@ -1,6 +1,6 @@
 # User Guide
 
-This guide covers the user-facing model of `kotlin-acyclic`.
+This guide covers the user-facing model of `kotlin-acyclic`: how to wire it into a build, what each rule family checks, and how the source-level controls refine the module defaults.
 
 ## Why This Model Exists
 
@@ -38,7 +38,7 @@ import one.wabbit.acyclic.gradle.AcyclicEnforcementMode
 
 plugins {
     kotlin("jvm") version "2.3.10"
-    id("one.wabbit.acyclic") version "<version>"
+    id("one.wabbit.acyclic") version "0.0.1"
 }
 
 repositories {
@@ -46,7 +46,7 @@ repositories {
 }
 
 dependencies {
-    implementation("one.wabbit:kotlin-acyclic:<version>")
+    implementation("one.wabbit:kotlin-acyclic:0.0.1")
 }
 
 acyclic {
@@ -62,7 +62,7 @@ The Gradle plugin selects the compiler-plugin artifact variant that matches the 
 
 If you are not using the Gradle plugin, you need:
 
-- the annotations dependency `one.wabbit:kotlin-acyclic:<version>`
+- the annotations dependency `one.wabbit:kotlin-acyclic:0.0.1`
 - the compiler plugin artifact `one.wabbit:kotlin-acyclic-plugin:<baseVersion>-kotlin-<kotlinVersion>`
 - compiler options in the standard plugin format
 
@@ -95,7 +95,7 @@ The Gradle defaults are:
 
 ## Design Intent
 
-The rule model is intentionally constrained:
+The rule model is constrained on purpose:
 
 - semantic rather than syntax-only
 - explicit rather than inferred from naming or imports
@@ -139,9 +139,7 @@ With `compilationUnits = OPT_IN`, a file opts in with:
 @file:one.wabbit.acyclic.Acyclic
 ```
 
-Important rule:
-
-- a file-level cycle is exempt only when every participating file uses `@file:AllowCompilationUnitCycles`
+A file-level cycle is exempt only when every participating file uses `@file:AllowCompilationUnitCycles`.
 
 ### Declaration acyclicity
 
@@ -158,7 +156,7 @@ Current tracked declaration nodes are:
 Current boundary:
 
 - declaration analysis is file-local today
-- cross-file declaration edges are intentionally ignored by the declaration graph
+- cross-file declaration edges are ignored by the declaration graph
 - cross-file recursion is therefore enforced by compilation-unit analysis, not a module-wide declaration graph
 
 Local declarations are not separate declaration nodes. Their resolved dependencies are attributed to the enclosing tracked declaration instead.
@@ -177,7 +175,7 @@ If an edge is already part of a reported declaration cycle, the cycle diagnostic
 
 ### Legal scoping
 
-These are intentionally legal:
+These are legal:
 
 ```kotlin
 sealed interface Token {
@@ -225,7 +223,7 @@ That file is valid under `TOP_DOWN` and rejected under `BOTTOM_UP`.
 
 ## Escape Hatches
 
-Escape hatches are intentionally narrow.
+Escape hatches are narrow.
 
 - `@AllowSelfRecursion` permits direct self-recursion
 - `@AllowMutualRecursion` permits a declaration cycle only when every declaration in the cycle opts out
@@ -247,9 +245,9 @@ fun odd(n: Int): Boolean =
 
 If only one participant opts out, the cycle is still reported.
 
-## Intentional Non-Goals
+## Current Non-Goals
 
-The current implementation is deliberately not trying to:
+The current implementation does not try to:
 
 - build a module-wide declaration graph
 - treat every form of lexical nesting as a dependency edge
@@ -261,6 +259,9 @@ The project direction is to keep the rule set semantic and explicit, but still u
 
 - [README.md](../README.md)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
+- [api-reference.md](./api-reference.md)
+- [migration.md](./migration.md)
+- [troubleshooting.md](./troubleshooting.md)
 - [library/README.md](../library/README.md)
 - [gradle-plugin/README.md](../gradle-plugin/README.md)
 - [compiler-plugin/README.md](../compiler-plugin/README.md)

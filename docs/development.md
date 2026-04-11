@@ -180,6 +180,9 @@ Start in:
 The most useful repo docs during development are:
 
 - [user-guide.md](./user-guide.md)
+- [api-reference.md](./api-reference.md)
+- [troubleshooting.md](./troubleshooting.md)
+- [migration.md](./migration.md)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
 - [`compiler-plugin/GOAL.md`](../compiler-plugin/GOAL.md)
 - [`compiler-plugin/WALKTHROUGH.md`](../compiler-plugin/WALKTHROUGH.md)
@@ -191,6 +194,8 @@ If you are new to the codebase, this order usually works well:
 
 1. [`README.md`](../README.md)
 2. [user-guide.md](./user-guide.md)
-3. [ARCHITECTURE.md](./ARCHITECTURE.md)
-4. [`compiler-plugin/README.md`](../compiler-plugin/README.md)
-5. [`compiler-plugin/PLAN.md`](../compiler-plugin/PLAN.md)
+3. [troubleshooting.md](./troubleshooting.md)
+4. [api-reference.md](./api-reference.md)
+5. [ARCHITECTURE.md](./ARCHITECTURE.md)
+6. [`compiler-plugin/README.md`](../compiler-plugin/README.md)
+7. [`compiler-plugin/PLAN.md`](../compiler-plugin/PLAN.md)

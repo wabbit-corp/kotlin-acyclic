@@ -4,6 +4,12 @@
 
 It contains only source-retained annotations and enums. There are no compiler internals here. The library is intended to be added as a normal dependency by projects that want to opt into, override, or explicitly exempt acyclicity rules in source.
 
+Start with the [root README](../README.md) for the overview, [user guide](../docs/user-guide.md) for setup and rule semantics, and [API reference](../docs/api-reference.md) for the public surface.
+
+## Status
+
+This module is pre-1.0 and follows the repository Kotlin compatibility matrix in [`../gradle.properties`](../gradle.properties).
+
 ## Repository Role
 
 The acyclic project family is split into three parts:
@@ -19,6 +25,23 @@ The annotations library keeps the base project version, while the compiler plugi
 ## Artifact
 
 - coordinates: `one.wabbit:kotlin-acyclic:0.0.1`
+
+## Installation
+
+Most users add this library alongside the Gradle plugin:
+
+```kotlin
+plugins {
+    kotlin("jvm") version "2.3.10"
+    id("one.wabbit.acyclic") version "0.0.1"
+}
+
+dependencies {
+    implementation("one.wabbit:kotlin-acyclic:0.0.1")
+}
+```
+
+Run `./gradlew compileKotlin` after adding the dependency to confirm the annotations resolve in source.
 
 ## Annotations
 
@@ -88,7 +111,7 @@ For declaration order specifically:
 
 `@AllowCompilationUnitCycles` explicitly permits a file to participate in a file-level cycle.
 
-Important detail: a compilation-unit cycle is exempt only when every file in the reported cycle opts out with this annotation.
+A compilation-unit cycle is exempt only when every file in the reported cycle opts out with this annotation.
 
 Example:
 
@@ -124,7 +147,7 @@ fun loop(n: Int): Int =
 
 `@AllowMutualRecursion` explicitly permits mutual recursion for the annotated declaration or file.
 
-Important detail: a mutual-recursion component is exempt only when every declaration in the cycle opts out with this annotation.
+A mutual-recursion component is exempt only when every declaration in the cycle opts out with this annotation.
 
 Targets:
 
@@ -152,11 +175,7 @@ fun odd(n: Int): Boolean =
 
 All annotations in this module use `AnnotationRetention.SOURCE`.
 
-That is intentional:
-
-- they are consumed during compilation
-- they do not need to remain in runtime metadata
-- they are part of the static structure policy, not runtime behavior
+These annotations are source-retained because they are consumed during compilation, do not need to remain in runtime metadata, and are part of the static structure policy rather than runtime behavior.
 
 ## Typical Usage
 
@@ -179,11 +198,4 @@ Then use annotations in source only where you want to:
 - override the default declaration-order policy
 - carve out narrow, explicit recursion exceptions
 
-## Related Docs
-
-- [`../README.md`](../README.md) for the project overview
-- [`../docs/user-guide.md`](../docs/user-guide.md) for setup and rule semantics
-- [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) for the repo-wide architecture
-- [`../gradle-plugin/README.md`](../gradle-plugin/README.md) for build integration
-- [`../compiler-plugin/README.md`](../compiler-plugin/README.md) for compiler-plugin internals
-- [`../compiler-plugin/WALKTHROUGH.md`](../compiler-plugin/WALKTHROUGH.md) for a manual review guide
+Release notes live in [`../CHANGELOG.md`](../CHANGELOG.md). If you run into unexpected diagnostics, start with [`../docs/troubleshooting.md`](../docs/troubleshooting.md) and the contribution/support guidance in the [root README](../README.md).

@@ -45,6 +45,8 @@ The main DSL types are:
 - `AcyclicDeclarationOrderMode`: `NONE`, `TOP_DOWN`, `BOTTOM_UP`
 
 The Gradle plugin resolves the compiler-plugin artifact variant that matches the applied Kotlin Gradle plugin version.
+It does not add the annotations library automatically; builds should declare
+`one.wabbit:kotlin-acyclic` explicitly where source annotations are used.
 
 ## Compiler Plugin Options
 

@@ -2,13 +2,13 @@
 
 package one.wabbit.acyclic.gradle
 
+import java.lang.reflect.Proxy
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import org.gradle.testfixtures.ProjectBuilder
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
-import java.lang.reflect.Proxy
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class AcyclicGradlePluginTest {
     @Test

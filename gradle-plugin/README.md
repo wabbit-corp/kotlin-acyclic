@@ -20,6 +20,8 @@ The annotations library remains a normal dependency:
 
 - `one.wabbit:kotlin-acyclic:0.0.1`
 
+The Gradle plugin does not add that annotations dependency automatically.
+
 ## Quick Start
 
 Use the normal Gradle plugin and dependency repositories:

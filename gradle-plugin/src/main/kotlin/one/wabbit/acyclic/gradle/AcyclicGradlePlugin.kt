@@ -2,6 +2,8 @@
 
 package one.wabbit.acyclic.gradle
 
+import one.wabbit.gradleplugin.common.compilerPluginArtifactVersion
+import one.wabbit.gradleplugin.common.currentKotlinGradlePluginVersion
 import org.gradle.api.Project
 import org.gradle.api.provider.Provider
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
@@ -59,7 +61,7 @@ class AcyclicGradlePlugin : KotlinCompilerPluginSupportPlugin {
             version =
                 compilerPluginArtifactVersion(
                     baseVersion = ACYCLIC_GRADLE_PLUGIN_VERSION,
-                    kotlinVersion = currentKotlinGradlePluginVersion(),
+                    kotlinVersion = currentKotlinGradlePluginVersion(AcyclicGradlePlugin::class.java),
                 ),
         )
 }

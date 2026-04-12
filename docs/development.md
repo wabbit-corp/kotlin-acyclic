@@ -164,7 +164,7 @@ These choices directly affect compiler behavior and public user docs.
 Start in:
 
 - [`gradle-plugin/src/main/kotlin/one/wabbit/acyclic/gradle/AcyclicGradlePlugin.kt`](../gradle-plugin/src/main/kotlin/one/wabbit/acyclic/gradle/AcyclicGradlePlugin.kt)
-- [`gradle-plugin/src/main/kotlin/one/wabbit/acyclic/gradle/AcyclicCompilerPluginVersioning.kt`](../gradle-plugin/src/main/kotlin/one/wabbit/acyclic/gradle/AcyclicCompilerPluginVersioning.kt)
+- the shared `compilerPluginArtifactVersion(...)` helper from the included `kotlin-gradle-plugin-common` build
 - Gradle plugin unit/functional tests under [`gradle-plugin/src/test/kotlin/`](../gradle-plugin/src/test/kotlin/)
 
 ### Change IntelliJ behavior

@@ -3,6 +3,8 @@
 package one.wabbit.acyclic.gradle
 
 import java.lang.reflect.Proxy
+import one.wabbit.gradleplugin.common.compilerPluginArtifactVersion
+import one.wabbit.gradleplugin.common.currentKotlinGradlePluginVersion
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import org.gradle.testfixtures.ProjectBuilder
@@ -35,7 +37,7 @@ class AcyclicGradlePluginTest {
         assertEquals(
             compilerPluginArtifactVersion(
                 baseVersion = ACYCLIC_GRADLE_PLUGIN_VERSION,
-                kotlinVersion = currentKotlinGradlePluginVersion(),
+                kotlinVersion = currentKotlinGradlePluginVersion(AcyclicGradlePlugin::class.java),
             ),
             artifact.version,
         )

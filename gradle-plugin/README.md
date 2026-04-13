@@ -22,6 +22,41 @@ The annotations library remains a normal dependency:
 
 The Gradle plugin does not add that annotations dependency automatically.
 
+## Installation
+
+Add the plugin and the annotation library to the consuming build:
+
+```kotlin
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+    }
+}
+```
+
+```kotlin
+// build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.3.10"
+    id("one.wabbit.acyclic") version "0.0.1"
+}
+
+dependencies {
+    implementation("one.wabbit:kotlin-acyclic:0.0.1")
+}
+```
+
+That is the minimum supported setup for a normal consumer build. The plugin resolves the Kotlin-line-specific compiler-plugin artifact automatically.
+
 ## Quick Start
 
 Use the normal Gradle plugin and dependency repositories:

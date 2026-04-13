@@ -33,11 +33,11 @@ import one.wabbit.acyclic.gradle.AcyclicEnforcementMode
 plugins {
     kotlin("jvm") version "2.3.10"
     application
-    id("one.wabbit.acyclic") version "0.0.1"
+    id("one.wabbit.acyclic") version "0.1.0"
 }
 
 dependencies {
-    implementation("one.wabbit:kotlin-acyclic:0.0.1")
+    implementation("one.wabbit:kotlin-acyclic:0.1.0")
 }
 
 kotlin {

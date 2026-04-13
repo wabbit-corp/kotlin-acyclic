@@ -4,7 +4,7 @@ This project is pre-1.0. Treat minor-version changes as potentially breaking unt
 
 Current release baseline:
 
-- project version: `0.0.1`
+- project version: `0.1.0`
 - supported Kotlin lines: `2.3.10`, `2.4.0-Beta1`
 - JVM toolchain for library, compiler plugin, and Gradle plugin: JDK 21
 - IntelliJ plugin runtime target: JVM 17
@@ -16,7 +16,7 @@ Current release baseline:
 ```kotlin
 plugins {
     kotlin("jvm") version "2.3.10"
-    id("one.wabbit.acyclic") version "0.0.1"
+    id("one.wabbit.acyclic") version "0.1.0"
 }
 ```
 
@@ -24,7 +24,7 @@ plugins {
 
 ```kotlin
 dependencies {
-    implementation("one.wabbit:kotlin-acyclic:0.0.1")
+    implementation("one.wabbit:kotlin-acyclic:0.1.0")
 }
 ```
 

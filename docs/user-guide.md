@@ -38,7 +38,7 @@ import one.wabbit.acyclic.gradle.AcyclicEnforcementMode
 
 plugins {
     kotlin("jvm") version "2.3.10"
-    id("one.wabbit.acyclic") version "0.0.1"
+    id("one.wabbit.acyclic") version "0.1.0"
 }
 
 repositories {
@@ -46,7 +46,7 @@ repositories {
 }
 
 dependencies {
-    implementation("one.wabbit:kotlin-acyclic:0.0.1")
+    implementation("one.wabbit:kotlin-acyclic:0.1.0")
 }
 
 acyclic {
@@ -62,7 +62,7 @@ The Gradle plugin selects the compiler-plugin artifact variant that matches the 
 
 If you are not using the Gradle plugin, you need:
 
-- the annotations dependency `one.wabbit:kotlin-acyclic:0.0.1`
+- the annotations dependency `one.wabbit:kotlin-acyclic:0.1.0`
 - the compiler plugin artifact `one.wabbit:kotlin-acyclic-plugin:<baseVersion>-kotlin-<kotlinVersion>`
 - compiler options in the standard plugin format
 

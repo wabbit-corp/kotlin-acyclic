@@ -13,12 +13,12 @@ This module is pre-1.0 and tracks the repository Kotlin compatibility matrix.
 ## Plugin Coordinates
 
 - plugin id: `one.wabbit.acyclic`
-- artifact: `one.wabbit:kotlin-acyclic-gradle-plugin:0.0.1`
+- artifact: `one.wabbit:kotlin-acyclic-gradle-plugin:0.1.0`
 - extension: `acyclic {}`
 
 The annotations library remains a normal dependency:
 
-- `one.wabbit:kotlin-acyclic:0.0.1`
+- `one.wabbit:kotlin-acyclic:0.1.0`
 
 The Gradle plugin does not add that annotations dependency automatically.
 
@@ -47,11 +47,11 @@ dependencyResolutionManagement {
 // build.gradle.kts
 plugins {
     kotlin("jvm") version "2.3.10"
-    id("one.wabbit.acyclic") version "0.0.1"
+    id("one.wabbit.acyclic") version "0.1.0"
 }
 
 dependencies {
-    implementation("one.wabbit:kotlin-acyclic:0.0.1")
+    implementation("one.wabbit:kotlin-acyclic:0.1.0")
 }
 ```
 
@@ -80,7 +80,7 @@ import one.wabbit.acyclic.gradle.AcyclicEnforcementMode
 
 plugins {
     kotlin("jvm") version "2.3.10"
-    id("one.wabbit.acyclic") version "0.0.1"
+    id("one.wabbit.acyclic") version "0.1.0"
 }
 
 repositories {
@@ -88,7 +88,7 @@ repositories {
 }
 
 dependencies {
-    implementation("one.wabbit:kotlin-acyclic:0.0.1")
+    implementation("one.wabbit:kotlin-acyclic:0.1.0")
 }
 
 acyclic {
@@ -108,7 +108,7 @@ import one.wabbit.acyclic.gradle.AcyclicEnforcementMode
 
 plugins {
     kotlin("multiplatform") version "2.3.10"
-    id("one.wabbit.acyclic") version "0.0.1"
+    id("one.wabbit.acyclic") version "0.1.0"
 }
 
 kotlin {
@@ -117,7 +117,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation("one.wabbit:kotlin-acyclic:0.0.1")
+            implementation("one.wabbit:kotlin-acyclic:0.1.0")
         }
     }
 }

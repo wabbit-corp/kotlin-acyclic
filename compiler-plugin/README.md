@@ -14,7 +14,7 @@ This module is pre-1.0 and publishes Kotlin-line-specific variants for the repos
 
 The compiler plugin is published as a Kotlin-line-specific artifact:
 
-- `one.wabbit:kotlin-acyclic-plugin:0.0.1-kotlin-2.3.10`
+- `one.wabbit:kotlin-acyclic-plugin:0.1.0-kotlin-2.3.10`
 
 The `-kotlin-<kotlinVersion>` suffix matters. FIR compiler-plugin binaries are coupled to the Kotlin compiler APIs they were built against.
 

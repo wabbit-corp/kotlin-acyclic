@@ -20,11 +20,11 @@ The acyclic project family is split into three parts:
 
 Most consumers need this repository together with the Gradle plugin.
 
-The annotations library keeps the base project version, while the compiler plugin is published as a Kotlin-specific variant such as `one.wabbit:kotlin-acyclic-plugin:0.0.1-kotlin-2.3.10`.
+The annotations library keeps the base project version, while the compiler plugin is published as a Kotlin-specific variant such as `one.wabbit:kotlin-acyclic-plugin:0.1.0-kotlin-2.3.10`.
 
 ## Artifact
 
-- coordinates: `one.wabbit:kotlin-acyclic:0.0.1`
+- coordinates: `one.wabbit:kotlin-acyclic:0.1.0`
 
 ## Installation
 
@@ -33,11 +33,11 @@ Most users add this library alongside the Gradle plugin:
 ```kotlin
 plugins {
     kotlin("jvm") version "2.3.10"
-    id("one.wabbit.acyclic") version "0.0.1"
+    id("one.wabbit.acyclic") version "0.1.0"
 }
 
 dependencies {
-    implementation("one.wabbit:kotlin-acyclic:0.0.1")
+    implementation("one.wabbit:kotlin-acyclic:0.1.0")
 }
 ```
 
@@ -188,7 +188,7 @@ plugins {
 }
 
 dependencies {
-    implementation("one.wabbit:kotlin-acyclic:0.0.1")
+    implementation("one.wabbit:kotlin-acyclic:0.1.0")
 }
 ```
 
